@@ -23,6 +23,13 @@
   loop_control:
     label: "{{ item.comment }}"
 
+- name: Remove app-profile rules superseded by ufw_rules
+  community.general.ufw:
+    rule: allow
+    name: "{{ item }}"
+    delete: true
+  loop: "{{ ufw_superseded_apps | default([]) }}"
+
 - name: Enforce ufw
   community.general.ufw:
     state: enabled
