@@ -1,7 +1,7 @@
 {% for leaf in ['meta', 'status', 'state', 'event'] %}
 pattern write {{ topic_root }}/%u/{{ leaf }}
 {% endfor %}
-pattern read {{ topic_root }}/%u/cmd
+pattern read {{ topic_root }}/+/cmd
 {% for user in mqtt.ui %}
 
 user {{ user }}
