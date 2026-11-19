@@ -1,1 +1,7 @@
 wol: "{{ secrets.wol.devil }}"
+
+ufw_rules:
+  - {port: "22", proto: tcp, comment: SSH}
+  - {port: "1714:1764", proto: tcp, comment: KDE Connect}
+  - {port: "1714:1764", proto: udp, comment: KDE Connect}
+  - {port: "{{ imp.ota_port }}", proto: tcp, from_ip: "{{ lan_cidr }}", comment: imp OTA}
