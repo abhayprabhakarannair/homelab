@@ -1,7 +1,22 @@
+- name: Install ufw
+  community.general.pacman:
+    name: ufw
+    state: present
+
 - name: Allow the imp OTA image download from the LAN
   community.general.ufw:
     rule: allow
     proto: tcp
     port: "{{ imp.ota_port | string }}"
-    from_ip: 192.168.0.0/24
+    from_ip: "{{ lan_cidr }}"
     comment: imp OTA
+
+- name: Enforce ufw
+  community.general.ufw:
+    state: enabled
+
+- name: Start ufw at boot
+  ansible.builtin.systemd_service:
+    name: ufw.service
+    enabled: true
+    state: started
