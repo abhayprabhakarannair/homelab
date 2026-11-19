@@ -4,7 +4,7 @@ all:
       hosts:
         mephisto:
           ansible_become_password: "{{ secrets.become.mephisto }}"
-    wardens:
+    workstations:
       hosts:
         devil:
           ansible_connection: local

@@ -1,0 +1,13 @@
+#pragma once
+#define IMP_WIFI_SSID {{ secrets.wifi.ssid | to_json }}
+#define IMP_WIFI_PASS {{ secrets.wifi.password | to_json }}
+#define IMP_MQTT_URI "mqtts://{{ mqtt.funnel_host }}:{{ mqtt.funnel_port }}"
+#define IMP_MQTT_USER "imp"
+#define IMP_MQTT_PASS {{ secrets.mqtt.imp | to_json }}
+#define IMP_OTA_PASS {{ secrets.imp_ota | to_json }}
+#define IMP_TOPIC "{{ topic_root }}/imp"
+#define IMP_TARGETS { \
+{% for name in imp.wakes %}
+  {"{{ name }}", { {{ hostvars[name].wol.mac.split(':') | map('regex_replace', '^', '0x') | join(', ') }} }, { {{ hostvars[name].wol.ip.split('.') | join(', ') }} }}{{ ',' if not loop.last }} \
+{% endfor %}
+}
