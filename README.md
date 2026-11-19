@@ -5,7 +5,7 @@ Ansible for every machine. Re-running `site.yml` converges a host from scratch.
 | Host | Role |
 |---|---|
 | mephisto | Oracle VM (AlmaLinux 10, aarch64). Platform: MQTT bus, Caddy for `*.mephisto.iamabhay.fyi` on the tailnet |
-| devil | Workstation (CachyOS). Runs warden |
+| devil | Workstation (CachyOS). Wake target for imp; opens the imp OTA port to the LAN |
 
 ## Network
 
@@ -45,6 +45,7 @@ sops decrypt group_vars/all/secrets.sops.yml >/dev/null && echo unlocked
 ansible-playbook site.yml --check --diff
 ansible-playbook site.yml
 ansible-playbook verify.yml
+ansible-playbook playbooks/imp.yml            # writes ../imp/site.h (wake targets from secrets.wol)
 ```
 
 ## Tests

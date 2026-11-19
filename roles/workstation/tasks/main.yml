@@ -1,0 +1,34 @@
+- name: Install ufw
+  community.general.pacman:
+    name: ufw
+    state: present
+
+- name: Default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    default: "{{ item.policy }}"
+  loop:
+    - {direction: incoming, policy: deny}
+    - {direction: outgoing, policy: allow}
+    - {direction: routed, policy: deny}
+
+- name: Allowed services
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port | string }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from_ip | default('any') }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ ufw_rules }}"
+  loop_control:
+    label: "{{ item.comment }}"
+
+- name: Enforce ufw
+  community.general.ufw:
+    state: enabled
+
+- name: Start ufw at boot
+  ansible.builtin.systemd_service:
+    name: ufw.service
+    enabled: true
+    state: started

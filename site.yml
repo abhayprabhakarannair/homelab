@@ -8,3 +8,9 @@
     - funnel
     - dns
     - caddy
+
+- name: Workstations
+  hosts: workstations
+  become: true
+  roles:
+    - workstation
