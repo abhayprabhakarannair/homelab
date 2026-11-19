@@ -18,14 +18,11 @@
     dest: /etc/containers/systemd/caddy.build
     mode: "0644"
   register: caddy_build_unit
-  notify: Reload systemd
-
-- name: Load the build unit
-  ansible.builtin.meta: flush_handlers
 
 - name: Build image
   ansible.builtin.systemd_service:
     name: caddy-build.service
+    daemon_reload: true
     state: "{{ 'restarted' if caddy_containerfile.changed or caddy_build_unit.changed else 'started' }}"
   when: not ansible_check_mode
 
@@ -44,7 +41,7 @@
     mode: "0644"
     setype: container_file_t
     validate: >-
-      podman run --rm --network none -e CLOUDFLARE_API_TOKEN=validate
+      podman run --rm --network none --env-file /etc/homelab/caddy/env
       -v %s:/etc/caddy/Caddyfile:ro,Z {{ caddy_image }}
       caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
   notify: Restart caddy
@@ -54,7 +51,7 @@
     src: caddy.container.j2
     dest: /etc/containers/systemd/caddy.container
     mode: "0644"
-  notify: [Reload systemd, Restart caddy]
+  notify: Restart caddy
 
 - name: Apply pending changes
   ansible.builtin.meta: flush_handlers
@@ -63,4 +60,5 @@
   ansible.builtin.systemd_service:
     name: caddy.service
     state: started
+    daemon_reload: true
   when: not ansible_check_mode
