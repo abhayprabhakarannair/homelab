@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 pythonpath = ["filter_plugins"]
 testpaths = ["tests"]
+filterwarnings = ["error"]
 
 [tool.ruff]
 line-length = 120
