@@ -23,6 +23,22 @@ sops edit group_vars/all/secrets.sops.yml
 sops updatekeys group_vars/all/secrets.sops.yml   # after changing recipients
 ```
 
+### Unlocking on a fresh machine
+
+Neither key is derived or generated; SOPS uses them as-is. Restore one of them, then check:
+
+```sh
+# SSH key (from the password manager)
+install -m 600 /dev/stdin ~/.ssh/homelab
+export SOPS_AGE_SSH_PRIVATE_KEY_FILE=~/.ssh/homelab   # for manual sops; ansible.cfg already sets it
+
+# or the offline age key (the AGE-SECRET-KEY-1… line), at SOPS's default path
+mkdir -p -m 700 ~/.config/sops/age
+install -m 600 /dev/stdin ~/.config/sops/age/keys.txt
+
+sops decrypt group_vars/all/secrets.sops.yml >/dev/null && echo unlocked
+```
+
 ## Usage
 
 ```sh
