@@ -7,3 +7,5 @@ ufw_rules:
   - {port: "{{ imp.ota_port }}", proto: tcp, from_ip: "{{ lan_cidr }}", comment: imp OTA}
 
 ufw_superseded_apps: [SSH, KDE Connect]
+
+warden_modules: [power, system, sensors]

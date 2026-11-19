@@ -1,0 +1,75 @@
+- name: Runtime dependency
+  community.general.pacman:
+    name: python-paho-mqtt
+    state: present
+
+- name: System user
+  ansible.builtin.copy:
+    dest: /etc/sysusers.d/warden.conf
+    content: |
+      u warden - "warden agent" - -
+    mode: "0644"
+  notify: Create warden user
+
+- name: Create the user before anything is owned by it
+  ansible.builtin.meta: flush_handlers
+
+- name: Code
+  ansible.posix.synchronize:
+    src: "{{ warden.repo }}/warden/"
+    dest: /opt/warden/warden/
+    delete: true
+    rsync_opts: [--exclude=__pycache__, "--chmod=D755,F644"]
+  delegate_to: "{{ inventory_hostname }}"
+  notify: Restart warden
+
+- name: Config directory
+  ansible.builtin.file:
+    path: /etc/warden
+    state: directory
+    owner: root
+    group: warden
+    mode: "0750"
+
+- name: MQTT password
+  ansible.builtin.copy:
+    dest: /etc/warden/password
+    content: "{{ secrets.mqtt[inventory_hostname] }}\n"
+    owner: root
+    group: warden
+    mode: "0640"
+  no_log: true
+  notify: Restart warden
+
+- name: Environment
+  ansible.builtin.template:
+    src: env.j2
+    dest: /etc/warden/env
+    owner: root
+    group: warden
+    mode: "0640"
+  notify: Restart warden
+
+- name: Polkit rule
+  ansible.builtin.template:
+    src: 50-warden.rules.j2
+    dest: /etc/polkit-1/rules.d/50-warden.rules
+    mode: "0644"
+
+- name: Unit
+  ansible.builtin.template:
+    src: warden.service.j2
+    dest: /etc/systemd/system/warden.service
+    mode: "0644"
+  notify: Restart warden
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Running and enabled
+  ansible.builtin.systemd_service:
+    name: warden.service
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode

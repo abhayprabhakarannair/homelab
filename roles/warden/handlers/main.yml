@@ -1,0 +1,10 @@
+- name: Create warden user
+  ansible.builtin.command: systemd-sysusers /etc/sysusers.d/warden.conf
+  changed_when: true
+
+- name: Restart warden
+  ansible.builtin.systemd_service:
+    name: warden.service
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
