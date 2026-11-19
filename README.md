@@ -15,9 +15,10 @@ Ansible for every machine. Re-running `site.yml` converges a host from scratch.
 
 ## Secrets
 
-`group_vars/all/secrets.sops.yml`, encrypted with SOPS for the age recipients in `.sops.yaml`. Ansible decrypts it through the `community.sops` vars plugin.
+`group_vars/all/secrets.sops.yml`, encrypted with SOPS for the recipients in `.sops.yaml`: the `~/.ssh/homelab` ed25519 key and an offline age key (password manager). Either decrypts. Ansible reads it through the `community.sops` vars plugin, pointed at `~/.ssh/homelab` in `ansible.cfg`.
 
 ```sh
+export SOPS_AGE_SSH_PRIVATE_KEY_FILE=~/.ssh/homelab
 sops edit group_vars/all/secrets.sops.yml
 sops updatekeys group_vars/all/secrets.sops.yml   # after changing recipients
 ```

@@ -1,5 +1,5 @@
 creation_rules:
   - path_regex: \.sops\.ya?ml$
     age: >-
-      age1tkygkjga74zk5v95kazmltqv93es65jrx5drnz3fxyw0egwhgetss6pqcy,
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF+mIhyn0WleD0sBHsS6IARv9y0KAXpi+0rTc0K0vZTD,
       age1zdekuet295qxtc3spzujdz6wqmfjymdsxqmwtc03mz0m0cn843nq0fhyfl
