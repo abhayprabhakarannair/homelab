@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install pytest==9.2.0 ruff==0.17.5 yamllint==1.38.0 ansible-lint==26.11.0
+      - run: ansible-galaxy collection install -r requirements.yml
+      - run: pytest
+      - run: ruff check . && ruff format --check .
+      - run: yamllint .
+      - run: ansible-lint
