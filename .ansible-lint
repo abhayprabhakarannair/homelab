@@ -1,4 +1,3 @@
 profile: production
 exclude_paths:
   - group_vars/all/secrets.sops.yml
-  - homelab_zip/
