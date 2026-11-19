@@ -54,3 +54,17 @@ pytest
 ruff check . && ruff format --check .
 yamllint . && ansible-lint
 ```
+
+## Workflow
+
+`main` is protected: it changes only through pull requests, with CI (`check`, `secrets`) green, the branch up to date, and every review conversation resolved. Force pushes and deletion are blocked, for admins too.
+
+1. Branch from `main`; one concern per branch.
+2. Open a PR. CI runs the tests and linters plus gitleaks over the branch history; the Claude review posts inline comments.
+3. Address or explicitly dismiss every comment, then squash-merge. Branches are deleted on merge.
+
+Local guardrails, enabled once per clone with `git config core.hooksPath .githooks`:
+
+- `pre-commit` runs gitleaks on staged changes and refuses the commit when gitleaks is missing.
+- `pre-push` refuses pushes to `main`.
+- `.claude/settings.json` denies Claude Code force pushes, pushes to `main`, skipping hooks, merging PRs and changing repository settings.
