@@ -1,4 +1,5 @@
 creation_rules:
   - path_regex: \.sops\.ya?ml$
     age: >-
-      age1tkygkjga74zk5v95kazmltqv93es65jrx5drnz3fxyw0egwhgetss6pqcy
+      age1tkygkjga74zk5v95kazmltqv93es65jrx5drnz3fxyw0egwhgetss6pqcy,
+      age1zdekuet295qxtc3spzujdz6wqmfjymdsxqmwtc03mz0m0cn843nq0fhyfl
