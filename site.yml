@@ -1,0 +1,9 @@
+- name: Platform
+  hosts: platform
+  become: true
+  roles:
+    - podman
+    - mqtt
+    - funnel
+    - dns
+    - caddy

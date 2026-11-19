@@ -1,0 +1,19 @@
+[Unit]
+Description=MQTT broker
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image={{ images.mosquitto }}
+ContainerName=mqtt
+PublishPort=127.0.0.1:{{ mqtt.port }}:{{ mqtt.port }}
+PublishPort=127.0.0.1:{{ mqtt.ws_port }}:{{ mqtt.ws_port }}
+Volume=/etc/homelab/mqtt:/mosquitto/config:ro,Z
+Volume=mqtt-data:/mosquitto/data:Z
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

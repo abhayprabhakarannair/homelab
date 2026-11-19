@@ -1,0 +1,1 @@
+caddy_image: "localhost/caddy:{{ images.caddy.split(':') | last }}-cloudflare"

@@ -1,0 +1,123 @@
+- name: Verify platform
+  hosts: platform
+  become: true
+  gather_facts: false
+  vars:
+    pub: podman exec mqtt mosquitto_pub -h 127.0.0.1 -p {{ mqtt.port }} -q 1
+    sub: podman exec mqtt mosquitto_sub -h 127.0.0.1 -p {{ mqtt.port }} -C 1 -W 3
+    probe: -i verify-probe -u probe -P {{ secrets.mqtt.probe }}
+    console: -i verify-console -u console -P {{ secrets.mqtt.console }}
+  tasks:
+    - name: Gather service state
+      ansible.builtin.service_facts:
+
+    - name: Services are running
+      ansible.builtin.assert:
+        that: ansible_facts.services[item].state == 'running'
+      loop: [mqtt.service, caddy.service]
+
+    - name: Collect listening sockets
+      ansible.builtin.command: ss -tlnH
+      register: sockets
+      changed_when: false
+
+    - name: Broker is bound to localhost only, Caddy to the tailnet only
+      ansible.builtin.assert:
+        that:
+          - listeners | select('search', ':' ~ mqtt.port ~ '$') | reject('match', '127\.0\.0\.1:') | list == []
+          - listeners | select('search', ':' ~ mqtt.ws_port ~ '$') | reject('match', '127\.0\.0\.1:') | list == []
+          - listeners | select('search', ':443$') | list | length > 0
+          - listeners | select('search', ':443$') | reject('match', '100\.') | list == []
+          - listeners | select('search', ':80$') | list == []
+      vars:
+        listeners: "{{ sockets.stdout_lines | map('split') | map(attribute=3) | list }}"
+
+    - name: Anonymous clients are refused
+      ansible.builtin.command: "{{ pub }} -i verify-anon -t {{ topic_root }}/probe/state -m x"
+      register: result
+      failed_when: result.rc == 0
+      changed_when: false
+
+    - name: Wrong passwords are refused
+      ansible.builtin.command: "{{ pub }} -i verify-wrong -u probe -P wrong -t {{ topic_root }}/probe/state -m x"
+      register: result
+      failed_when: result.rc == 0
+      changed_when: false
+
+    - name: Probe publishes its own state
+      ansible.builtin.command: "{{ pub }} {{ probe }} -r -t {{ topic_root }}/probe/state -m verify-own"
+      changed_when: false
+      no_log: true
+
+    - name: Console reads it
+      ansible.builtin.command: "{{ sub }} {{ console }} -t {{ topic_root }}/probe/state"
+      register: result
+      failed_when: result.stdout != 'verify-own'
+      changed_when: false
+      no_log: true
+
+    - name: Probe writes into another device's topics
+      ansible.builtin.command: "{{ pub }} {{ probe }} -r -t {{ topic_root }}/imp/meta -m verify-foreign"
+      changed_when: false
+      no_log: true
+
+    - name: Console overwrites a device's state
+      ansible.builtin.command: "{{ pub }} {{ console }} -r -t {{ topic_root }}/probe/state -m verify-ui"
+      changed_when: false
+      no_log: true
+
+    - name: Neither write was accepted
+      ansible.builtin.command: >-
+        {{ sub }} {{ console }} -C 2 -t {{ topic_root }}/imp/meta -t {{ topic_root }}/probe/state
+      register: result
+      failed_when: "'verify-foreign' in result.stdout or 'verify-ui' in result.stdout"
+      changed_when: false
+      no_log: true
+
+    - name: Probe cannot read another device's commands
+      ansible.builtin.shell: |
+        {{ sub }} {{ probe }} -t {{ topic_root }}/imp/cmd & reader=$!
+        sleep 1
+        {{ pub }} {{ console }} -t {{ topic_root }}/imp/cmd -m verify-cmd
+        wait "$reader"
+      register: result
+      failed_when: "'verify-cmd' in result.stdout"
+      changed_when: false
+      no_log: true
+
+    - name: Console can command a device
+      ansible.builtin.shell: |
+        {{ sub }} {{ probe }} -t {{ topic_root }}/probe/cmd & reader=$!
+        sleep 1
+        {{ pub }} {{ console }} -t {{ topic_root }}/probe/cmd -m verify-cmd
+        wait "$reader"
+      register: result
+      failed_when: result.stdout != 'verify-cmd'
+      changed_when: false
+      no_log: true
+
+    - name: Remove retained test messages
+      ansible.builtin.command: "{{ pub }} {{ probe }} -r -n -t {{ topic_root }}/probe/state"
+      changed_when: false
+      no_log: true
+
+    - name: Read tailnet name
+      ansible.builtin.command: tailscale status --self --json
+      register: status
+      changed_when: false
+
+    - name: Valid certificates on the tailnet site and the Funnel endpoint
+      ansible.builtin.command:
+        cmd: openssl s_client -brief -verify_return_error -servername {{ item.0 }} -connect {{ item.0 }}:{{ item.1 }}
+        stdin: ""
+      loop:
+        - ["verify.{{ inventory_hostname }}.{{ domain }}", 443]
+        - ["{{ tailnet_name }}", "{{ mqtt.funnel_port }}"]
+      vars:
+        tailnet_name: "{{ (status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+      delegate_to: localhost
+      become: false
+      register: tls
+      changed_when: false
+      failed_when: >-
+        tls.rc != 0 or "Verification: OK" not in tls.stderr

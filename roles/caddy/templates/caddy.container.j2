@@ -1,0 +1,23 @@
+[Unit]
+Description=Caddy
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+
+[Container]
+Image=caddy.build
+ContainerName=caddy
+Network=host
+EnvironmentFile=/etc/homelab/caddy/env
+Volume=/etc/homelab/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=caddy-data:/data:Z
+Volume=caddy-config:/config:Z
+{% for site in sites.values() if site.root is defined %}
+Volume={{ site.root }}:{{ site.root }}:ro,Z
+{% endfor %}
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

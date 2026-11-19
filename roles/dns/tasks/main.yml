@@ -1,0 +1,12 @@
+- name: Wildcard record pointing at the tailnet address
+  community.general.cloudflare_dns:
+    api_token: "{{ secrets.cloudflare_api_token }}"
+    zone: "{{ domain }}"
+    record: "*.{{ inventory_hostname }}"
+    type: A
+    value: "{{ ansible_facts.tailscale0.ipv4.address }}"
+    proxied: false
+    solo: true
+    state: present
+  delegate_to: localhost
+  become: false

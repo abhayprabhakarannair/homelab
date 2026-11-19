@@ -1,0 +1,17 @@
+- name: Read Tailscale serve config
+  ansible.builtin.command: tailscale serve status --json
+  register: funnel_serve_status
+  changed_when: false
+  check_mode: false
+
+- name: Expose MQTT publicly through Funnel
+  ansible.builtin.command: >-
+    tailscale funnel --bg --tls-terminated-tcp={{ mqtt.funnel_port }} tcp://127.0.0.1:{{ mqtt.port }}
+  vars:
+    serve: "{{ funnel_serve_status.stdout | from_json }}"
+    forward: "{{ serve.TCP | default({}) | dict2items | selectattr('key', 'eq', mqtt.funnel_port | string)
+                | map(attribute='value.TCPForward') | first | default('') }}"
+    public: "{{ serve.AllowFunnel | default({}) | dict2items | selectattr('value')
+               | selectattr('key', 'search', ':' ~ mqtt.funnel_port ~ '$') | list | length > 0 }}"
+  when: forward != '127.0.0.1:' ~ mqtt.port or not public
+  changed_when: true

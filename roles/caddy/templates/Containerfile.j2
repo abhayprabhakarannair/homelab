@@ -1,0 +1,5 @@
+FROM {{ images.caddy_builder }} AS builder
+RUN xcaddy build --with {{ images.caddy_dns_cloudflare }}
+
+FROM {{ images.caddy }}
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy

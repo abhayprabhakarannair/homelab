@@ -1,0 +1,36 @@
+- name: Config directory
+  ansible.builtin.file:
+    path: /etc/homelab/mqtt
+    state: directory
+    owner: "1883"
+    group: "1883"
+    mode: "0750"
+    setype: container_file_t
+
+- name: Broker config
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/homelab/mqtt/{{ item }}
+    owner: "1883"
+    group: "1883"
+    mode: "0640"
+    setype: container_file_t
+  loop: [mosquitto.conf, acl, passwd]
+  no_log: "{{ item == 'passwd' }}"
+  notify: Restart mqtt
+
+- name: Quadlet
+  ansible.builtin.template:
+    src: mqtt.container.j2
+    dest: /etc/containers/systemd/mqtt.container
+    mode: "0644"
+  notify: [Reload systemd, Restart mqtt]
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Broker running
+  ansible.builtin.systemd_service:
+    name: mqtt.service
+    state: started
+  when: not ansible_check_mode

@@ -1,0 +1,3 @@
+{% for user in mqtt.devices + mqtt.ui %}
+{{ user }}:{{ secrets.mqtt[user] | mosquitto_hash(user) }}
+{% endfor %}

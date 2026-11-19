@@ -1,0 +1,15 @@
+domain: iamabhay.fyi
+topic_root: home
+
+mqtt:
+  port: 1883
+  ws_port: 9001
+  funnel_port: 8443
+  devices: [imp, devil, probe]
+  ui: [console]
+
+images:
+  mosquitto: docker.io/library/eclipse-mosquitto:2.1.4-alpine
+  caddy: docker.io/library/caddy:2.11.9
+  caddy_builder: docker.io/library/caddy:2.11.9-builder
+  caddy_dns_cloudflare: github.com/caddy-dns/cloudflare@v0.2.4

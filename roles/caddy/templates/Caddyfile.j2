@@ -1,0 +1,33 @@
+{
+	admin off
+	auto_https disable_redirects
+}
+
+*.{{ inventory_hostname }}.{{ domain }} {
+	bind {{ ansible_facts.tailscale0.ipv4.address }}
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 1.1.1.1
+	}
+{% for name, site in sites.items() %}
+
+	@{{ name }} host {{ name }}.{{ inventory_hostname }}.{{ domain }}
+	handle @{{ name }} {
+{% for path, upstream in (site.proxy | default({})).items() %}
+		handle {{ path }} {
+			reverse_proxy {{ upstream }}
+		}
+{% endfor %}
+{% if site.root is defined %}
+		handle {
+			root * {{ site.root }}
+			file_server
+		}
+{% endif %}
+	}
+{% endfor %}
+
+	handle {
+		abort
+	}
+}
