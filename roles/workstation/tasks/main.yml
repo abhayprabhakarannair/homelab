@@ -23,12 +23,18 @@
   loop_control:
     label: "{{ item.comment }}"
 
+- name: Read installed ufw rules
+  ansible.builtin.slurp:
+    src: /etc/ufw/user.rules
+  register: workstation_ufw_user_rules
+
 - name: Remove app-profile rules superseded by ufw_rules
   community.general.ufw:
     rule: allow
     name: "{{ item }}"
     delete: true
   loop: "{{ ufw_superseded_apps | default([]) }}"
+  when: ("dapp_" ~ (item | urlencode)) in (workstation_ufw_user_rules.content | b64decode)
 
 - name: Enforce ufw
   community.general.ufw:
