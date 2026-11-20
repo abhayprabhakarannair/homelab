@@ -19,7 +19,7 @@
     src: "{{ warden.repo }}/warden/"
     dest: /opt/warden/warden/
     delete: true
-    rsync_opts: [--exclude=__pycache__, "--chmod=D755,F644"]
+    rsync_opts: [--exclude=__pycache__, "--chmod=D755,F644", "--chown=root:root"]
   delegate_to: "{{ inventory_hostname }}"
   notify: Restart warden
 
