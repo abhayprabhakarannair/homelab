@@ -20,9 +20,24 @@ imp, warden and console are generic: they read deployment values from config (`s
 | mephisto | Oracle Cloud A1.Flex, ap-hyderabad-1, AlmaLinux 10 aarch64, 2 vCPU / 12 GB / 200 GB. Ephemeral public IP; tailnet `100.101.245.84`, `mephisto.tail6aa22b.ts.net`. Hosts the bus and web apps. |
 | devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. |
 | imp | ESP32-S3-WROOM-1 N16R8 dev kit, `imp.local` (192.168.0.6), 2.4 GHz Wi-Fi. |
-| old-devil | Old laptop (NixOS) running the Omada controller, `ssh old-devil -p 2442`. Not managed yet. |
+| er605 | TP-Link ER605 v2.20, the home router. Stock firmware 2.2.5 under the Omada controller until it moves to OpenWrt ([runbook](runbooks/openwrt.md)). |
+| eap225 | TP-Link EAP225(US) v4.0, the only access point. Stock firmware 5.1.10 under the Omada controller until it moves to OpenWrt. |
+| old-devil | Old laptop (NixOS, unreliable: no power-on after AC loss), `ssh old-devil -p 2442`. Runs the Omada controller; its Home Assistant, Technitium, Syncthing and NUT client are unused. Retired once er605 and eap225 run OpenWrt. |
 
-Home has no public IP (CGNAT); the ISP link is slow (~1.7 Mbit/s, 150 ms to mephisto, 52 ms to Cloudflare).
+## Home network
+
+One flat LAN, `192.168.0.0/24`, gateway er605 at `.1`, DHCP from the router, public DNS resolvers. Fixed addresses are DHCP reservations; wake targets' MAC/IP live only in SOPS.
+
+Three ISPs, all behind CGNAT, used as ordered failover (decision 16):
+
+| Router port | OpenWrt name | ISP | Link |
+|---|---|---|---|
+| WAN | `wan1` | BSNL | 100 Mbit/s, unlimited; primary |
+| WAN/LAN1 | `lan2` | RailWire | 60 Mbit/s, unlimited, unreliable; first backup |
+| WAN/LAN2 | `lan3` | Jio AirFiber | 30 Mbit/s, 1000 GB cap, drops in rain; last resort |
+| LAN1, LAN2 | `lan4`, `lan5` | LAN | |
+
+The figures in decisions 14 and 15 (~1.7 Mbit/s, 150 ms to mephisto, 52 ms to Cloudflare) were measured while Omada load-balanced BSNL and RailWire; re-measure on BSNL after the migration.
 
 ## Data flow
 

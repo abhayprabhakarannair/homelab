@@ -18,7 +18,10 @@
     port: "{{ item.port | string }}"
     proto: "{{ item.proto }}"
     from_ip: "{{ item.from_ip | default('any') }}"
-    comment: "{{ item.comment }}"
+    comment: "{{ omit if absent else item.comment }}"
+    delete: "{{ absent }}"
+  vars:
+    absent: "{{ item.state | default('present') == 'absent' }}"
   loop: "{{ ufw_rules }}"
   loop_control:
     label: "{{ item.comment }}"
