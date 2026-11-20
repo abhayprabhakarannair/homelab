@@ -25,13 +25,52 @@
     group: root
     mode: "0755"
 
+- name: Stage the committed warden tree
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -rf "{{ warden_stage }}"
+    mkdir -p "{{ warden_stage }}"
+    git -C "{{ warden.repo }}" archive HEAD warden | tar -x -C "{{ warden_stage }}"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+
+- name: List staged files
+  ansible.builtin.find:
+    paths: "{{ warden_stage }}/warden"
+    recurse: true
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  register: warden_staged
+
 - name: Code
-  ansible.posix.synchronize:
-    src: "{{ warden.repo }}/warden/"
+  ansible.builtin.copy:
+    src: "{{ warden_stage }}/warden/"
     dest: /opt/warden/warden/
-    delete: true
-    rsync_opts: [--exclude=__pycache__, "--chmod=D755,F644", "--chown=root:root"]
-  delegate_to: "{{ inventory_hostname }}"
+    owner: root
+    group: root
+    mode: "0644"
+    directory_mode: "0755"
+  notify: Restart warden
+
+- name: List deployed files
+  ansible.builtin.find:
+    paths: /opt/warden/warden
+    recurse: true
+  register: warden_deployed
+
+- name: Remove files that are no longer in the repo
+  ansible.builtin.file:
+    path: "/opt/warden/warden/{{ item }}"
+    state: absent
+  loop: "{{ deployed | difference(staged) }}"
+  vars:
+    deployed: "{{ warden_deployed.files | map(attribute='path') | map('regex_replace', '^/opt/warden/warden/', '') }}"
+    staged: "{{ warden_staged.files | map(attribute='path') | map('relpath', warden_stage ~ '/warden') }}"
   notify: Restart warden
 
 - name: Config directory

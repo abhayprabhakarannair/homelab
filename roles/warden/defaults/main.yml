@@ -1,0 +1,1 @@
+warden_stage: "{{ lookup('env', 'HOME') }}/.cache/homelab/warden"
