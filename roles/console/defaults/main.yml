@@ -1,0 +1,2 @@
+console_stage: "{{ lookup('env', 'HOME') }}/.cache/homelab/console"
+console_root: /srv/console
