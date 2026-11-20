@@ -26,9 +26,9 @@ imp, warden and console are generic: they read deployment values from config (`s
 
 ## Home network
 
-One flat LAN, `192.168.0.0/24`, gateway er605 at `.1`, IPv4 only. DHCP and DNS from the router's dnsmasq, which forwards to 1.1.1.1 and 8.8.8.8; rebind protection stays on except for `iamabhay.fyi` (its records point at tailnet addresses). Fixed addresses are DHCP reservations from SOPS (`dhcp_hosts` plus the wake targets).
+One flat LAN, `192.168.0.0/24`, gateway er605 at `.1`, IPv4 only. DHCP and DNS from the router's dnsmasq, which forwards to 1.1.1.1 and 8.8.8.8; rebind protection stays on except for `rebind_domains` (`mephisto.iamabhay.fyi` and its subdomains, which point at tailnet addresses). Fixed addresses are DHCP reservations from SOPS (`dhcp_hosts` plus the wake targets).
 
-Three ISPs, all behind CGNAT, used as ordered failover with mwan3 (decision 16). Each WAN is checked by pinging 1.1.1.1, 8.8.8.8 and 9.9.9.9 every second (Jio every 5 s); three failed rounds mark it offline. When BSNL goes offline, mwan3 flushes connection tracking so open connections move to the backup at once; the flush is global, so backups never trigger it (a flapping RailWire would otherwise reset every connection in the house). Measured 2026-11-20: 4.3 s outage when BSNL's upstream died with the link up, ~2 s for a pulled cable, no loss when BSNL returned.
+Three ISPs, all behind CGNAT, used as ordered failover with mwan3 (decision 16). Each WAN is checked by pinging 1.1.1.1, 8.8.8.8 and 9.9.9.9 every second (Jio every 5 s); three failed rounds mark it offline. When BSNL goes offline, mwan3 flushes connection tracking so open connections move to the backup at once; the flush is global, so backups never trigger it (a flapping RailWire would otherwise reset every connection in the house). `verify.yml` fails only if no WAN is online or traffic is not on the first online one; down WANs are reported, not failed, since an ISP can be out for days. Measured 2026-11-20: 4.3 s outage when BSNL's upstream died with the link up, ~2 s for a pulled cable, no loss when BSNL returned.
 
 | Router port | OpenWrt name | ISP | Link |
 |---|---|---|---|
