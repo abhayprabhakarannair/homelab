@@ -1,5 +1,6 @@
 domain: iamabhay.fyi
 lan_cidr: 192.168.0.0/24
+lan_broadcast: 192.168.0.255
 topic_root: home
 
 mqtt:
@@ -7,7 +8,7 @@ mqtt:
   ws_port: 9001
   funnel_port: 8443
   funnel_host: mephisto.tail6aa22b.ts.net
-  devices: [imp, devil, probe]
+  devices: [imp, devil, er605, probe]
   ui: [console]
 
 images:

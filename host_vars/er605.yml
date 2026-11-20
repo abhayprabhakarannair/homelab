@@ -11,3 +11,8 @@ track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
 # Names whose public records point at tailnet addresses; dnsmasq's rebind protection drops them otherwise.
 rebind_domains: ["mephisto.{{ domain }}"]
 dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts) }}"
+
+warden_init: procd
+warden_uid: 200
+warden_modules: [system, wake, wan, clients]
+warden_wakes: "{{ imp.wakes }}"

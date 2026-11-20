@@ -16,12 +16,6 @@
   roles:
     - workstation
 
-- name: Wardens
-  hosts: wardens
-  become: true
-  roles:
-    - warden
-
 - name: Routers
   hosts: routers
   gather_facts: false
@@ -33,3 +27,9 @@
   gather_facts: false
   roles:
     - ap
+
+- name: Wardens
+  hosts: wardens
+  become: true
+  roles:
+    - warden
