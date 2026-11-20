@@ -1,7 +1,9 @@
 # OpenWrt has no room for Python on this AP, so every task is raw or runs on the controller.
 - name: Read config files
-  ansible.builtin.raw: cat /etc/config/{{ item }}
-  loop: [system, network, wireless]
+  ansible.builtin.raw: cat {{ item.path }} 2>/dev/null || true
+  loop: "{{ ap_files }}"
+  loop_control:
+    label: "{{ item.path }}"
   register: ap_current
   changed_when: false
   check_mode: false
@@ -13,25 +15,25 @@
     after: "{{ wanted | regex_replace(key_line, masked) }}"
   vars:
     current: "{{ item.stdout_lines | join('\n') | trim }}"
-    wanted: "{{ lookup('template', item.item ~ '.j2') | trim }}"
-    key_line: "(?m)^(\\s*option key ).*$"
+    wanted: "{{ lookup('template', item.item.template) | trim }}"
+    key_line: "(?m)^(\\s*option (?:key|password) ).*$"
     masked: "\\1<secret>"
   changed_when: current != wanted
   loop: "{{ ap_current.results }}"
   loop_control:
-    label: "{{ item.item }}"
+    label: "{{ item.item.path }}"
   register: ap_diff
 
 - name: Write config files
   ansible.builtin.raw: |
-    cat > /etc/config/{{ item.item.item }} <<'EOF'
-    {{ lookup('template', item.item.item ~ '.j2') | trim }}
+    cat > {{ item.item.item.path }} <<'EOF'
+    {{ lookup('template', item.item.item.template) | trim }}
     EOF
   when: item.changed and not ansible_check_mode
   changed_when: true
   loop: "{{ ap_diff.results }}"
   loop_control:
-    label: "{{ item.item.item }}"
+    label: "{{ item.item.item.path }}"
   no_log: true
   notify: Reload OpenWrt config
 

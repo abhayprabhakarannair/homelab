@@ -1,0 +1,6 @@
+ap_files:
+  - {path: /etc/config/system, template: system.j2}
+  - {path: /etc/config/network, template: network.j2}
+  - {path: /etc/config/wireless, template: wireless.j2}
+  - {path: /etc/config/rpcd, template: rpcd.j2}
+  - {path: /usr/share/rpcd/acl.d/warden.json, template: rpcd-acl.json.j2}

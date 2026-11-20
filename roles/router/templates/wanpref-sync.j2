@@ -1,0 +1,25 @@
+#!/bin/sh
+# Rebuilds the per-device ISP override rules from /tmp/wanpref/<ip> (contents: an ISP name).
+# An override applies only while its ISP is tracked online; otherwise the device uses its normal policy.
+# mwan3 deletes rules in its 1000-3999 range when it stops, so this runs on every mwan3 interface event.
+
+PRIORITY=1500
+
+table() {
+	case "$1" in
+{% for wan in wans %}
+	{{ wan.name }}) echo {{ loop.index }} ;;
+{% endfor %}
+	esac
+}
+
+while ip rule del priority "$PRIORITY" 2>/dev/null; do :; done
+
+for file in /tmp/wanpref/*; do
+	[ -f "$file" ] || continue
+	isp=$(cat "$file")
+	id=$(table "$isp")
+	[ -n "$id" ] || continue
+	[ "$(cat "/var/run/mwan3track/wan_$isp/STATUS" 2>/dev/null)" = online ] || continue
+	ip rule add from "${file##*/}" lookup "$id" priority "$PRIORITY"
+done
