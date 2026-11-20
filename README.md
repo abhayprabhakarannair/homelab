@@ -2,6 +2,8 @@
 
 Ansible for every machine. Re-running `site.yml` converges a host from scratch.
 
+System design, decisions and roadmap: [docs/architecture.md](docs/architecture.md), [docs/decisions.md](docs/decisions.md), [docs/roadmap.md](docs/roadmap.md).
+
 | Host | Role |
 |---|---|
 | mephisto | Oracle VM (AlmaLinux 10, aarch64). Platform: MQTT bus, Caddy for `*.mephisto.iamabhay.fyi` on the tailnet |
