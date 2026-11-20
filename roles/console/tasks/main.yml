@@ -1,0 +1,64 @@
+- name: Build the committed console
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -rf "{{ console_stage }}"
+    mkdir -p "{{ console_stage }}"
+    git -C "{{ console.repo }}" archive HEAD | tar -x -C "{{ console_stage }}"
+    cd "{{ console_stage }}"
+    mise trust --quiet .
+    mise install --quiet
+    mise exec -- npm ci --no-audit --no-fund --loglevel=error
+    mise exec -- npm run build --silent
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+
+- name: List built files
+  ansible.builtin.find:
+    paths: "{{ console_stage }}/dist"
+    recurse: true
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  register: console_built
+
+- name: Site root
+  ansible.builtin.file:
+    path: "{{ console_root }}"
+    state: directory
+    mode: "0755"
+    setype: container_file_t
+
+- name: Site files
+  ansible.builtin.copy:
+    src: "{{ console_stage }}/dist/"
+    dest: "{{ console_root }}/"
+    mode: "0644"
+    directory_mode: "0755"
+    setype: container_file_t
+
+- name: Bus credentials for the browser (tailnet only)
+  ansible.builtin.template:
+    src: config.js.j2
+    dest: "{{ console_root }}/config.js"
+    mode: "0644"
+    setype: container_file_t
+  no_log: true
+
+- name: List deployed files
+  ansible.builtin.find:
+    paths: "{{ console_root }}"
+    recurse: true
+  register: console_deployed
+
+- name: Remove files that are no longer built
+  ansible.builtin.file:
+    path: "{{ console_root }}/{{ item }}"
+    state: absent
+  loop: "{{ deployed | list | difference((built | list) + ['config.js']) }}"
+  vars:
+    deployed: "{{ console_deployed.files | map(attribute='path') | map('relpath', console_root) }}"
+    built: "{{ console_built.files | map(attribute='path') | map('relpath', console_stage ~ '/dist') }}"

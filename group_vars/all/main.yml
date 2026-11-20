@@ -23,3 +23,6 @@ imp:
 
 warden:
   repo: "{{ lookup('env', 'HOME') }}/Projects/warden"
+
+console:
+  repo: "{{ lookup('env', 'HOME') }}/Projects/console"
