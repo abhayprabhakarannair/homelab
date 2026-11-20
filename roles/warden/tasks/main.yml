@@ -14,6 +14,14 @@
 - name: Create the user before anything is owned by it
   ansible.builtin.meta: flush_handlers
 
+- name: Code root
+  ansible.builtin.file:
+    path: /opt/warden
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Code
   ansible.posix.synchronize:
     src: "{{ warden.repo }}/warden/"
