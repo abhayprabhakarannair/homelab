@@ -1,5 +1,6 @@
 sites:
   console:
     root: /srv/console
+    immutable: [/vendor/*]
     proxy:
       /mqtt: "127.0.0.1:{{ mqtt.ws_port }}"

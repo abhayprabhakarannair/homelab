@@ -20,6 +20,15 @@
 {% endfor %}
 {% if site.root is defined %}
 		handle {
+			encode zstd gzip
+{% if site.immutable is defined %}
+			@{{ name }}_immutable path {{ site.immutable | join(' ') }}
+			header @{{ name }}_immutable Cache-Control "public, max-age=31536000, immutable"
+			@{{ name }}_revalidate not path {{ site.immutable | join(' ') }}
+			header @{{ name }}_revalidate Cache-Control "no-cache"
+{% else %}
+			header Cache-Control "no-cache"
+{% endif %}
 			root * {{ site.root }}
 			file_server
 		}
