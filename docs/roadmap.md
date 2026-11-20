@@ -2,15 +2,14 @@
 
 ## Status (2026-11-20)
 
-All four repos are on `main` with CI green; `verify.yml` passes 20/20 and `site.yml --check` reports no changes. imp runs firmware 0.1.0 (flashed over OTA).
+All four repos are on `main` with CI green; `verify.yml` passes 25/25 and `site.yml --check` reports no changes. imp runs firmware 0.1.0 (flashed over OTA). eap225 runs OpenWrt under the `ap` role.
 
 ## Next: OpenWrt (decision 16)
 
 Following [runbooks/openwrt.md](runbooks/openwrt.md):
 
-1. eap225 on OpenWrt; then an `ap` role and inventory entry (one SSID on both bands from `secrets.wifi`).
-2. er605 on OpenWrt; then a `router` role (WANs, mwan3 failover, DHCP reservations from SOPS) and `verify.yml` checks.
-3. Retire old-devil and the Omada controller; re-measure the link on BSNL and correct decisions 14 and 15.
+1. er605 on OpenWrt; then a `router` role (WANs, mwan3 failover, DHCP reservations from SOPS) and `verify.yml` checks.
+2. Retire old-devil and the Omada controller; re-measure the link on BSNL and correct decisions 14 and 15.
 
 ## Then: API service (decision 15)
 

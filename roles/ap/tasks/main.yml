@@ -1,0 +1,48 @@
+# OpenWrt has no room for Python on this AP, so every task is raw or runs on the controller.
+- name: Read config files
+  ansible.builtin.raw: cat /etc/config/{{ item }}
+  loop: [system, network, wireless]
+  register: ap_current
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Compare with templates
+  ansible.utils.fact_diff:
+    before: "{{ current | regex_replace(key_line, masked) }}"
+    after: "{{ wanted | regex_replace(key_line, masked) }}"
+  vars:
+    current: "{{ item.stdout_lines | join('\n') | trim }}"
+    wanted: "{{ lookup('template', item.item ~ '.j2') | trim }}"
+    key_line: "(?m)^(\\s*option key ).*$"
+    masked: "\\1<secret>"
+  changed_when: current != wanted
+  loop: "{{ ap_current.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: ap_diff
+
+- name: Write config files
+  ansible.builtin.raw: |
+    cat > /etc/config/{{ item.item.item }} <<'EOF'
+    {{ lookup('template', item.item.item ~ '.j2') | trim }}
+    EOF
+  when: item.changed and not ansible_check_mode
+  changed_when: true
+  loop: "{{ ap_diff.results }}"
+  loop_control:
+    label: "{{ item.item.item }}"
+  no_log: true
+  notify: Reload OpenWrt config
+
+# er605 is the LAN's only DHCP server. In check mode the loop only lists what it would disable.
+- name: Disable DHCP and router advertisements
+  ansible.builtin.raw: |
+    for s in dnsmasq odhcpd; do
+      /etc/init.d/$s enabled || continue
+      {{ 'true' if ansible_check_mode else '/etc/init.d/$s disable && /etc/init.d/$s stop' }}
+      echo "disabled $s"
+    done
+  check_mode: false
+  register: ap_services
+  changed_when: "'disabled' in ap_services.stdout"

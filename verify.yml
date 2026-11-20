@@ -173,3 +173,40 @@
       changed_when: false
       failed_when: >-
         tls.rc != 0 or "Verification: OK" not in tls.stderr
+
+- name: Verify access points
+  hosts: access_points
+  gather_facts: false
+  tasks:
+    - name: Read radio state
+      ansible.builtin.raw: ubus call network.wireless status
+      register: radios
+      changed_when: false
+      no_log: true
+
+    - name: Both radios broadcast the home SSID
+      ansible.builtin.assert:
+        that:
+          - state | length == 2
+          - state | rejectattr('up') | list == []
+          - state | map(attribute='interfaces') | flatten | map(attribute='config.ssid') | unique == [secrets.wifi.ssid]
+        quiet: true
+      vars:
+        state: "{{ radios.stdout | from_json | dict2items | map(attribute='value') }}"
+      no_log: true
+
+    - name: No DHCP or router advertisement servers run
+      ansible.builtin.raw: pgrep -l 'dnsmasq|odhcpd'
+      register: servers
+      changed_when: false
+      failed_when: servers.rc == 0
+
+    - name: Read clock
+      ansible.builtin.raw: date +%s
+      register: clock
+      changed_when: false
+
+    - name: Clock is synchronised
+      ansible.builtin.assert:
+        that: (clock.stdout | trim | int - now().timestamp() | int) | abs < 60
+        quiet: true

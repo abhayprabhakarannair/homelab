@@ -21,3 +21,9 @@
   become: true
   roles:
     - warden
+
+- name: Access points
+  hosts: access_points
+  gather_facts: false
+  roles:
+    - ap

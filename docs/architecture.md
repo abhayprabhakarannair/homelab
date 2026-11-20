@@ -21,7 +21,7 @@ imp, warden and console are generic: they read deployment values from config (`s
 | devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. |
 | imp | ESP32-S3-WROOM-1 N16R8 dev kit, `imp.local` (192.168.0.6), 2.4 GHz Wi-Fi. |
 | er605 | TP-Link ER605 v2.20, the home router. Stock firmware 2.2.5 under the Omada controller until it moves to OpenWrt ([runbook](runbooks/openwrt.md)). |
-| eap225 | TP-Link EAP225(US) v4.0, the only access point. Stock firmware 5.1.10 under the Omada controller until it moves to OpenWrt. |
+| eap225 | TP-Link EAP225(US) v4.0, the only access point. OpenWrt 25.12.6, `192.168.0.2` (DHCP reservation), bridged to the LAN; one SSID on both bands. |
 | old-devil | Old laptop (NixOS, unreliable: no power-on after AC loss), `ssh old-devil -p 2442`. Runs the Omada controller; its Home Assistant, Technitium, Syncthing and NUT client are unused. Retired once er605 and eap225 run OpenWrt. |
 
 ## Home network
@@ -82,6 +82,7 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 | mephisto | `site.yml`, roles `firewall` (tailnet zone, https only), `podman`, `mqtt`, `funnel`, `dns`, `console`, `caddy` |
 | devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
 | imp | `playbooks/imp.yml` writes `../imp/site.h`; then `make test`, `arduino-cli compile`, `./ota-upload.sh` (OTA on 3232, callback 3233 open on devil from the LAN) |
+| eap225 | `site.yml`, role `ap`: templates `/etc/config/{system,network,wireless}`, keeps dnsmasq and odhcpd off. No Python on the device (it needs ~12 MB of the 6 MB free), so tasks are `raw` over SSH or run on the controller. |
 | console | the `console` role builds with the repo's mise Node, copies `dist/` to `/srv/console`, templates `config.js` |
 
 `verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
