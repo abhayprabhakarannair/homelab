@@ -13,3 +13,8 @@ all:
     wardens:
       hosts:
         devil:
+    access_points:
+      hosts:
+        eap225:
+          ansible_host: 192.168.0.2
+          ansible_user: root

@@ -24,3 +24,5 @@ Hub of a four-repo system (homelab, imp, warden, console, all in `~/Projects`). 
 - Caddy config is validated with the real env file (a dummy Cloudflare token fails validation).
 - gitleaks flags well-known sample secrets (e.g. the RFC 6455 WebSocket key); generate test values at runtime.
 - The Claude review action skips PRs that change `.github/workflows/code-review.yml`.
+- OpenWrt hosts have no Python: `raw` only. `raw` is skipped in check mode unless `check_mode: false`, and its stdout has CRLF line endings (use `stdout_lines`).
+- Stock TP-Link SSH (dropbear 2018) drops OpenSSH 10's long host-key list: use `-o HostKeyAlgorithms=ssh-rsa` (no `+`).

@@ -28,33 +28,38 @@ QCA9563, 128 MiB RAM, 16 MiB SPI-NOR flash. Use the **v4** image only: a v3 imag
 OpenWrt boots with a DHCP server on `192.168.1.1/24`, so from step 2 until that server is disabled the AP must not be on the home LAN: it would hand out wrong leases to every device that renews.
 
 1. In the Omada controller, forget the EAP225. It resets to factory defaults.
-2. Move the AP's data cable (the LAN side of its PoE injector) from the home network to devil's `enp14s0`. Without DHCP the stock firmware falls back to `192.168.0.254`. Give devil addresses on both subnets for the rest of section A:
+2. Unplug the cable between er605 and the injector's **LAN** port at the router end and plug it into devil's `enp14s0`. Never connect devil to the injector's **PoE** port: the bundled injector is passive 24 V. Check the link is 1 Gbit/s and stable (`journalctl -k | grep enp14s0`); a flapping 10/100 Mbit/s link is a bad cable. Without DHCP the stock firmware falls back to `192.168.0.254`. Stop NetworkManager from managing the port (it would flush manual addresses when DHCP times out) and give devil addresses on both subnets for the rest of section A:
    ```sh
+   sudo nmcli device set enp14s0 managed no
    sudo ip addr add 192.168.0.10/24 dev enp14s0
    sudo ip addr add 192.168.1.10/24 dev enp14s0
    ```
 3. Open `http://192.168.0.254` (default login `admin`/`admin`, then set a new password) and enable SSH.
-4. SSH in with the legacy algorithms the stock firmware needs:
+4. SSH in. Its dropbear (2018) resets the connection when offered OpenSSH 10's full host-key list, so offer only `ssh-rsa`:
    ```sh
-   ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa \
-       -o KexAlgorithms=+diffie-hellman-group1-sha1 admin@192.168.0.254
+   ssh -o HostKeyAlgorithms=ssh-rsa -o PubkeyAuthentication=no -o UserKnownHostsFile=/dev/null <user>@192.168.0.254
    ```
 5. Run `cliclientd stopcs`. **If the command is missing, stop**: nothing has been changed yet; plug the AP back into the home network and re-adopt it.
 6. Copy the factory image to a short name (`factory.bin`; long names have been rejected) and upload it through the web UI's firmware upgrade page. Do not power off until the AP reboots.
-7. OpenWrt comes up at `192.168.1.1` with Wi-Fi off. Set the root password, disable its DHCP server and make its LAN a DHCP client so it joins the home network, then remove devil's temporary addresses:
+7. OpenWrt comes up at `192.168.1.1` with Wi-Fi off and root without a password. Install the homelab key, set the root password, disable its DHCP server and IPv6 router advertisements (odhcpd would hand the whole LAN a ULA prefix and DNS), make its LAN a DHCP client, then give the port back to NetworkManager:
    ```sh
-   ssh root@192.168.1.1 passwd
-   ssh root@192.168.1.1 '/etc/init.d/dnsmasq disable
+   ssh -o UserKnownHostsFile=/dev/null root@192.168.1.1 'cat > /etc/dropbear/authorized_keys' < ~/.ssh/homelab.pub
+   ssh -o UserKnownHostsFile=/dev/null root@192.168.1.1 passwd
+   ssh -o UserKnownHostsFile=/dev/null root@192.168.1.1 '/etc/init.d/dnsmasq disable
+     /etc/init.d/odhcpd disable
+     uci set system.@system[0].hostname=eap225
      uci set network.lan.proto=dhcp
      uci -q delete network.lan.ipaddr
-     uci -q delete network.lan.netmask
-     uci commit network
+     uci -q delete network.lan.ip6assign
+     uci -q delete network.globals.ula_prefix
+     uci commit
      reboot'
    sudo ip addr del 192.168.0.10/24 dev enp14s0
    sudo ip addr del 192.168.1.10/24 dev enp14s0
+   sudo nmcli device set enp14s0 managed yes
    ```
-8. Plug the AP's data cable back into the home network; it takes a lease from er605 (find it in the controller's client list).
-9. Open the roadmap's step 1 PR (`ap` role, inventory entry) and apply it.
+8. Plug the cable back into er605; the AP takes its reserved lease (`192.168.0.2`). Accept its new host key once (`ssh -o StrictHostKeyChecking=accept-new root@192.168.0.2 true`).
+9. `ansible-playbook site.yml --limit eap225 --check --diff`, then without `--check`, then `verify.yml --limit eap225`.
 
 Recovery if it does not boot: serial header J4 (1 TXD, 2 RXD, 3 GND, 4 VCC) needs the unpopulated resistors R225 (TXD) and R237 (RXD) bridged with solder; **never bridge R230**. 3.3 V, 115200 8n1. Hold Ctrl+B during boot for the bootloader, then:
 

@@ -1,0 +1,34 @@
+{% set ssid = secrets.wifi.ssid | replace("'", "'\\''") %}
+{% set key = secrets.wifi.password | replace("'", "'\\''") %}
+
+config wifi-device 'radio0'
+	option type 'mac80211'
+	option path 'pci0000:00/0000:00:00.0'
+	option band '5g'
+	option channel '36'
+	option htmode 'VHT80'
+	option country 'IN'
+
+config wifi-iface 'home_5g'
+	option device 'radio0'
+	option network 'lan'
+	option mode 'ap'
+	option ssid '{{ ssid }}'
+	option encryption 'psk2'
+	option key '{{ key }}'
+
+config wifi-device 'radio1'
+	option type 'mac80211'
+	option path 'platform/ahb/18100000.wmac'
+	option band '2g'
+	option channel 'auto'
+	option htmode 'HT20'
+	option country 'IN'
+
+config wifi-iface 'home_2g'
+	option device 'radio1'
+	option network 'lan'
+	option mode 'ap'
+	option ssid '{{ ssid }}'
+	option encryption 'psk2'
+	option key '{{ key }}'
