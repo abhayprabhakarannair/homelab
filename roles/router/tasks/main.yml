@@ -27,10 +27,33 @@
     src: "{{ item }}.j2"
     dest: /etc/config/{{ item }}
     mode: "0644"
-  loop: [system, network, dhcp, firewall, mwan3, vnstat]
+  loop: "{{ router_configs }}"
+  notify: Apply router config
+
+# Converges after a run that failed between writing and applying: reload_config records the applied state of each
+# config in /var/run/config.md5, so anything that differs from it is still waiting to be applied.
+- name: Find config written but not applied
+  ansible.builtin.shell: |
+    set -o pipefail
+    for f in {{ router_configs | join(' ') }}; do
+      applied=$(grep " /var/run/config.check/$f$" /var/run/config.md5 | cut -d' ' -f1)
+      current=$(uci show "$f" 2>/dev/null | md5sum | cut -d' ' -f1)
+      [ "$applied" = "$current" ] || echo "$f"
+    done
+  register: router_pending
+  changed_when: router_pending.stdout | length > 0
+  check_mode: false
   notify: Apply router config
 
 # On OpenWrt /var is RAM: keep the usage database on flash so cycle totals survive reboots.
+# vnstatd does not create its database directory.
+- name: Usage database directory
+  ansible.builtin.file:
+    path: /etc/vnstat
+    state: directory
+    mode: "0755"
+  notify: Restart vnstat
+
 - name: Usage counter settings
   ansible.builtin.lineinfile:
     path: /etc/vnstat.conf
@@ -44,6 +67,12 @@
   when: not (ansible_check_mode and router_packages is changed)
   notify: Restart vnstat
 
+- name: Plugin directory for rpcd
+  ansible.builtin.file:
+    path: /usr/libexec/rpcd
+    state: directory
+    mode: "0755"
+
 - name: ISP override helper
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -52,7 +81,7 @@
   loop:
     - {src: wanpref-sync.j2, dest: /usr/libexec/wanpref-sync, mode: "0755"}
     - {src: wanpref.j2, dest: /usr/libexec/rpcd/wanpref, mode: "0755"}
-    - {src: mwan3.user.j2, dest: /etc/mwan3.user, mode: "0644"}
+    - {src: mwan3.user.j2, dest: /etc/mwan3.user, mode: "0755"}
     - {src: warden-acl.json.j2, dest: /usr/share/acl.d/warden.json, mode: "0644"}
   loop_control:
     label: "{{ item.dest }}"
