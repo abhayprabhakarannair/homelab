@@ -1,2 +1,11 @@
 - name: Apply router config
   ansible.builtin.include_tasks: apply.yml
+
+- name: Restart vnstat
+  ansible.builtin.command: /etc/init.d/vnstat restart
+  changed_when: true
+
+# rpcd discovers exec plugins at start; ubusd reads ACL files on SIGHUP.
+- name: Reload ubus services
+  ansible.builtin.shell: /etc/init.d/rpcd restart && kill -HUP "$(pidof ubusd)"
+  changed_when: true

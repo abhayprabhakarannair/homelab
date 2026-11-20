@@ -70,6 +70,17 @@
   no_log: true
   notify: Restart warden
 
+- name: Access point API password
+  ansible.builtin.copy:
+    dest: /etc/warden/wifi-password
+    content: "{{ secrets.ap_api.password }}\n"
+    owner: root
+    group: warden
+    mode: "0640"
+  when: warden_wifi_api is defined
+  no_log: true
+  notify: Restart warden
+
 - name: Environment
   ansible.builtin.template:
     src: env.j2

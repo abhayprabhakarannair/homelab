@@ -1,3 +1,4 @@
+# rpcd re-reads its logins and ACL files on reload.
 - name: Reload OpenWrt config
-  ansible.builtin.raw: reload_config
+  ansible.builtin.raw: reload_config && /etc/init.d/rpcd reload
   changed_when: true

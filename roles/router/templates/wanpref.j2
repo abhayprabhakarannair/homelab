@@ -1,0 +1,46 @@
+#!/bin/sh
+# rpcd exec plugin, run as root: `ubus call wanpref set '{"ip":"…","isp":"<isp>|auto"}'`.
+# Only the warden user may call it (/usr/share/acl.d/warden.json). Routes one LAN device through one ISP,
+# then drops that device's tracked connections so it moves at once.
+
+. /usr/share/libubox/jshn.sh
+
+fail() {
+	json_init
+	json_add_string error "$1"
+	json_dump
+	exit 0
+}
+
+case "$1" in
+list)
+	echo '{ "set": { "ip": "str", "isp": "str" } }'
+	;;
+call)
+	[ "$2" = set ] || fail "unknown method"
+	read -r input
+	json_load "$input" || fail "invalid JSON"
+	json_get_var ip ip
+	json_get_var isp isp
+	prefix="{{ (lan_address | split('.'))[:3] | join('.') }}."
+	octet=${ip#"$prefix"}
+	case "$octet" in
+	"$ip"|''|0*|*[!0-9]*) fail "not a LAN address" ;;
+	esac
+	[ "$octet" -ge 1 ] && [ "$octet" -le 254 ] || fail "not a LAN address"
+	case "$isp" in
+	auto) rm -f "/tmp/wanpref/$ip" ;;
+{% for wan in wans %}
+	{{ wan.name }}) mkdir -p /tmp/wanpref && echo {{ wan.name }} > "/tmp/wanpref/$ip" ;;
+{% endfor %}
+	*) fail "unknown isp" ;;
+	esac
+	/usr/libexec/wanpref-sync
+	conntrack -D -s "$ip" >/dev/null 2>&1
+	conntrack -D -d "$ip" >/dev/null 2>&1
+	json_init
+	json_add_string ip "$ip"
+	json_add_string isp "$isp"
+	json_dump
+	;;
+esac

@@ -2,7 +2,7 @@
 - name: Runtime dependency
   ansible.builtin.command: apk add python3-paho-mqtt
   args:
-    creates: /usr/lib/python3.13/site-packages/paho/mqtt/client.py
+    creates: /usr/lib/python3.13/site-packages/paho/mqtt/client.pyc
 
 - name: Service user
   ansible.builtin.lineinfile:

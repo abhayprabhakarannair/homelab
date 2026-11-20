@@ -1,0 +1,10 @@
+{
+	"warden": {
+		"description": "er605's warden: Wi-Fi client list only",
+		"read": {
+			"ubus": {
+				"hostapd.*": [ "get_clients" ]
+			}
+		}
+	}
+}

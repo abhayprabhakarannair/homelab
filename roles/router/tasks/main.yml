@@ -5,11 +5,17 @@
   changed_when: "'OK:' in router_python.stdout"
   check_mode: false
 
-- name: Install mwan3
-  ansible.builtin.command: apk add mwan3
+- name: Install packages
+  ansible.builtin.command: apk add {{ item.name }}
   args:
-    creates: /usr/sbin/mwan3
-  register: router_mwan3
+    creates: "{{ item.creates }}"
+  loop:
+    - {name: mwan3, creates: /usr/sbin/mwan3}
+    - {name: vnstat2, creates: /usr/sbin/vnstatd}
+    - {name: conntrack, creates: /usr/sbin/conntrack}
+  loop_control:
+    label: "{{ item.name }}"
+  register: router_packages
 
 - name: Snapshot config for rollback
   ansible.builtin.command: cp -a /etc/config/. /tmp/config.rollback/
@@ -21,8 +27,36 @@
     src: "{{ item }}.j2"
     dest: /etc/config/{{ item }}
     mode: "0644"
-  loop: [system, network, dhcp, firewall, mwan3]
+  loop: [system, network, dhcp, firewall, mwan3, vnstat]
   notify: Apply router config
+
+# On OpenWrt /var is RAM: keep the usage database on flash so cycle totals survive reboots.
+- name: Usage counter settings
+  ansible.builtin.lineinfile:
+    path: /etc/vnstat.conf
+    regexp: "^;?{{ item.key }} "
+    line: "{{ item.key }} {{ item.value }}"
+  loop:
+    - {key: DatabaseDir, value: '"/etc/vnstat"'}
+    - {key: MonthRotate, value: "{{ router_cycle_day }}"}
+  loop_control:
+    label: "{{ item.key }}"
+  when: not (ansible_check_mode and router_packages is changed)
+  notify: Restart vnstat
+
+- name: ISP override helper
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {src: wanpref-sync.j2, dest: /usr/libexec/wanpref-sync, mode: "0755"}
+    - {src: wanpref.j2, dest: /usr/libexec/rpcd/wanpref, mode: "0755"}
+    - {src: mwan3.user.j2, dest: /etc/mwan3.user, mode: "0644"}
+    - {src: warden-acl.json.j2, dest: /usr/share/acl.d/warden.json, mode: "0644"}
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Reload ubus services
 
 - name: Service state
   community.general.openwrt_init:
@@ -32,4 +66,4 @@
   loop:
     - {name: odhcpd, enabled: false}
     - {name: mwan3, enabled: true}
-  when: not (ansible_check_mode and item.name == 'mwan3' and router_mwan3 is changed)
+  when: not (ansible_check_mode and router_packages is changed)

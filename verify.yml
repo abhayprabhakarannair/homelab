@@ -255,6 +255,33 @@
         label: "{{ item.key }}"
       no_log: true
 
+    - name: Read failover config
+      ansible.builtin.command: uci show mwan3
+      register: mwan3_config
+      changed_when: false
+      no_log: true
+
+    - name: Every device preference has its rule and a policy that tries that ISP first
+      ansible.builtin.assert:
+        that:
+          - ("mwan3.device_" ~ rule ~ ".src_ip='" ~ dhcp_hosts[item.key].ip ~ "'") in mwan3_config.stdout
+          - ("mwan3.device_" ~ rule ~ ".use_policy='prefer_" ~ item.value ~ "'") in mwan3_config.stdout
+          - ("mwan3.prefer_" ~ item.value ~ ".use_member='wan_" ~ item.value ~ "_m1'") in mwan3_config.stdout
+        quiet: true
+      vars:
+        rule: "{{ item.key | replace('-', '_') }}"
+      loop: "{{ wan_preferences | default({}) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      no_log: true
+
+    - name: The ISP switch is callable by warden and refuses non-LAN addresses
+      ansible.builtin.command: >-
+        su warden -s /bin/sh -c "ubus call wanpref set '{\"ip\":\"198.51.100.1\",\"isp\":\"auto\"}'"
+      register: wanpref
+      changed_when: false
+      failed_when: wanpref.rc != 0 or (wanpref.stdout | from_json).error != 'not a LAN address'
+
     - name: No IPv6 router advertisements
       ansible.builtin.command: pgrep odhcpd
       register: odhcpd

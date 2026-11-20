@@ -1,0 +1,5 @@
+
+config vnstat
+{% for wan in wans %}
+	list interface '{{ wan.device }}'
+{% endfor %}
