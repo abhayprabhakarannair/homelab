@@ -6,7 +6,9 @@ config dnsmasq
 	option localise_queries '1'
 	option rebind_protection '1'
 	option rebind_localhost '1'
-	list rebind_domain '{{ domain }}'
+{% for name in rebind_domains %}
+	list rebind_domain '{{ name }}'
+{% endfor %}
 	option local '/lan/'
 	option domain 'lan'
 	option expandhosts '1'

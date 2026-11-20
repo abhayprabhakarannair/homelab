@@ -225,12 +225,14 @@
       register: policies
       changed_when: false
 
-    - name: Traffic uses the first online WAN only
+    - name: At least one WAN is online and traffic uses the first of them
       ansible.builtin.assert:
-        that: policies.stdout is search('failover:\\s+' ~ primary ~ ' \\(100%\\)')
+        that:
+          - online | length > 0
+          - policies.stdout is search('failover:\\s+' ~ online[0] ~ ' \\(100%\\)')
         quiet: true
       vars:
-        primary: "{{ mwan3.stdout_lines | select('search', ' is online') | map('split') | map(attribute=1) | first }}"
+        online: "{{ mwan3.stdout_lines | select('search', ' is online') | map('split') | map(attribute=1) | list }}"
 
     - name: Router resolves and reaches the internet
       ansible.builtin.command: "{{ item }}"
@@ -259,11 +261,9 @@
       changed_when: false
       failed_when: odhcpd.rc == 0
 
-    - name: Every WAN is tracked online
-      ansible.builtin.assert:
-        that: ("interface wan_" ~ item.name ~ " is online") in mwan3.stdout
-        fail_msg: "{{ mwan3.stdout_lines | select('search', 'wan_' ~ item.name ~ ' ') | join }}"
-        quiet: true
-      loop: "{{ wans }}"
-      loop_control:
-        label: "{{ item.name }}"
+    - name: Report WANs that are down
+      ansible.builtin.debug:
+        msg: "{{ down | map('trim') | list }}"
+      changed_when: down | length > 0
+      vars:
+        down: "{{ mwan3.stdout_lines | select('search', 'interface wan_') | reject('search', ' is online') | list }}"

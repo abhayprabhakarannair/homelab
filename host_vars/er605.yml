@@ -8,4 +8,6 @@ lan_macaddr: "98:03:8e:71:9d:b9"
 lan_address: 192.168.0.1/24
 dns_servers: [1.1.1.1, 8.8.8.8]
 track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
+# Names whose public records point at tailnet addresses; dnsmasq's rebind protection drops them otherwise.
+rebind_domains: ["mephisto.{{ domain }}"]
 dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts) }}"
