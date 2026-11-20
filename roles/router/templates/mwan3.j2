@@ -32,7 +32,7 @@ config policy 'failover'
 	list use_member 'wan_{{ wan.name }}_m{{ loop.index }}'
 {% endfor %}
 	option last_resort 'unreachable'
-{% for primary in wan_preferences.values() | unique | sort %}
+{% for primary in (wan_preferences | default({})).values() | unique | sort %}
 {% set order = [primary] + (wans | map(attribute='name') | reject('eq', primary) | list) %}
 
 config policy 'prefer_{{ primary }}'
@@ -41,7 +41,7 @@ config policy 'prefer_{{ primary }}'
 {% endfor %}
 	option last_resort 'unreachable'
 {% endfor %}
-{% for device, primary in wan_preferences | dictsort %}
+{% for device, primary in wan_preferences | default({}) | dictsort %}
 
 config rule 'device_{{ device | replace('-', '_') }}'
 	option src_ip '{{ dhcp_hosts[device].ip }}'
