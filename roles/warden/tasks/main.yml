@@ -23,14 +23,34 @@
   changed_when: false
   check_mode: false
 
-- name: Code
+- name: Code archive
   ansible.builtin.copy:
     src: "{{ warden_archive }}"
     dest: /opt/warden/warden.tar.gz
     owner: root
     group: root
     mode: "0644"
-  notify: Unpack warden
+
+# Converges on its own: the marker holds the checksum of the archive last unpacked successfully, so a
+# failed or interrupted unpack, or a deleted tree, is redone on the next run. The new tree is swapped in by rename.
+- name: Code
+  ansible.builtin.shell: |
+    set -e
+    cd /opt/warden
+    sum=$(sha256sum warden.tar.gz)
+    sum=${sum%% *}
+    if [ -d warden ] && [ "$(cat .unpacked 2>/dev/null)" = "$sum" ]; then exit 0; fi
+    rm -rf .new .old
+    mkdir .new
+    tar -xzf warden.tar.gz -C .new
+    if [ -d warden ]; then mv warden .old; fi
+    mv .new/warden warden
+    rm -rf .new .old
+    echo "$sum" > .unpacked
+    echo unpacked
+  register: warden_unpack
+  changed_when: "'unpacked' in warden_unpack.stdout"
+  notify: Restart warden
 
 - name: Config directory
   ansible.builtin.file:
