@@ -8,7 +8,7 @@ A home control platform: wake, monitor and power-manage machines from anywhere, 
 |---|---|---|---|
 | [homelab](https://github.com/abhayprabhakarannair/homelab) | Deployment and secrets for every machine; the only repo that knows hostnames, addresses and credentials | devil (control node) | Ansible, SOPS/age, Podman Quadlets |
 | [imp](https://github.com/abhayprabhakarannair/imp) | Wake-on-LAN and presence device | ESP32-S3 on the home LAN | Arduino core 3.3, C++17, doctest |
-| [warden](https://github.com/abhayprabhakarannair/warden) | Modular host agent: state and power actions | devil (systemd) | Python, paho-mqtt |
+| [warden](https://github.com/abhayprabhakarannair/warden) | Modular host agent: state, power actions, Wake-on-LAN, ISP and LAN status | devil (systemd), er605 (procd) | Python, paho-mqtt |
 | [console](https://github.com/abhayprabhakarannair/console) | Web UI built from what devices announce | mephisto (Caddy, static) | vanilla ES modules, mqtt.js, node:test |
 
 imp, warden and console are generic: they read deployment values from config (`site.h`, env vars, `config.js`) that homelab generates. homelab deploys them from the sibling checkouts in `~/Projects/<repo>` at their committed `HEAD`, so pull `main` there before deploying.
@@ -20,7 +20,7 @@ imp, warden and console are generic: they read deployment values from config (`s
 | mephisto | Oracle Cloud A1.Flex, ap-hyderabad-1, AlmaLinux 10 aarch64, 2 vCPU / 12 GB / 200 GB. Ephemeral public IP; tailnet `100.101.245.84`, `mephisto.tail6aa22b.ts.net`. Hosts the bus and web apps. |
 | devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. |
 | imp | ESP32-S3-WROOM-1 N16R8 dev kit, `imp.local` (192.168.0.6), 2.4 GHz Wi-Fi. |
-| er605 | TP-Link ER605 v2.20, the home router. OpenWrt 25.12.6 ([runbook](runbooks/openwrt.md)), `192.168.0.1`. Stock flash backup on devil (`~/er605-backup`), old-devil and mephisto. |
+| er605 | TP-Link ER605 v2.20, the home router. OpenWrt 25.12.6 ([runbook](runbooks/openwrt.md)), `192.168.0.1`. Runs warden (`system`, `wake`, `wan`, `clients`): a wired, always-on wake path next to imp, and ISP and LAN status on the console. Stock flash backup on devil (`~/er605-backup`), old-devil and mephisto. |
 | eap225 | TP-Link EAP225(US) v4.0, the only access point. OpenWrt 25.12.6, `192.168.0.2` (DHCP reservation), bridged to the LAN; one SSID on both bands. |
 | old-devil | Old laptop (NixOS, unreliable: no power-on after AC loss), `ssh old-devil -p 2442`. Its Omada controller, Home Assistant, Technitium, Syncthing and NUT client are unused; to be retired. |
 
@@ -43,7 +43,7 @@ The figures in decisions 14 and 15 (~1.7 Mbit/s, 150 ms to mephisto, 52 ms to Cl
 
 ```
  imp (LAN) ──TLS :8443──► Tailscale Funnel ─┐
- warden (devil) ──TLS :8443──► Funnel ──────┤
+ warden (devil, er605) ──TLS :8443──► Funnel ┤
                                             ▼
                           mephisto: Mosquitto 127.0.0.1:1883 (+ WS 127.0.0.1:9001)
                                             ▲
@@ -67,9 +67,9 @@ Topics `home/<id>/<leaf>`; `<id>` matches `^[a-z0-9_-]{1,31}$` and equals the cl
 | `event` | no | JSON with `event`; retained events are ignored |
 | `cmd` | no | `<command> [args…] [source]` |
 
-An empty retained payload clears `meta`/`status`/`state`. ACL (`roles/mqtt/templates/acl.j2`): each user writes its own `meta/status/state/event` and reads its own `cmd`; UI users (`console`) read `home/#` and write `home/+/cmd`. MQTT users: `imp`, `devil`, `console`, `probe` (verify.yml).
+An empty retained payload clears `meta`/`status`/`state`. ACL (`roles/mqtt/templates/acl.j2`): each user writes its own `meta/status/state/event` and reads its own `cmd`; UI users (`console`) read `home/#` and write `home/+/cmd`. MQTT users: `imp`, `devil`, `er605`, `console`, `probe` (verify.yml).
 
-The console has no device-specific code: cards come from `meta.kind` and `meta.commands`. Wake buttons appear on each machine listed in an imp's `meta.wakes` and are sent as `wake <target>` to that imp. A machine's power state prefers imp's LAN ping over the agent's own status.
+The console has no device-specific code: cards come from `meta.kind` and `meta.commands`. Wake buttons appear on each machine listed in any device's `meta.wakes` (imp, or a warden with the `wake` module) and are sent as `wake <target>` through an online one. A machine's power state prefers imp's LAN ping over the agent's own status.
 
 ## Secrets
 
@@ -81,6 +81,7 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 |---|---|
 | mephisto | `site.yml`, roles `firewall` (tailnet zone, https only), `podman`, `mqtt`, `funnel`, `dns`, `console`, `caddy` |
 | devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
+| er605 warden | `site.yml`, role `warden` with `warden_init: procd`: `python3-paho-mqtt`, a `warden` user (UID 200) allowed unprivileged ping through `net.ipv4.ping_group_range`, a procd service with `no_new_privs` |
 | imp | `playbooks/imp.yml` writes `../imp/site.h`; then `make test`, `arduino-cli compile`, `./ota-upload.sh` (OTA on 3232, callback 3233 open on devil from the LAN) |
 | er605 | `site.yml`, role `router`: installs Python and mwan3, templates `/etc/config/{system,network,dhcp,firewall,mwan3}`. Changes apply with an automatic rollback: the router restores its previous config unless Ansible reconnects and confirms within 120 s. |
 | eap225 | `site.yml`, role `ap`: templates `/etc/config/{system,network,wireless}`, keeps dnsmasq and odhcpd off. No Python on the device (it needs ~12 MB of the 6 MB free), so tasks are `raw` over SSH or run on the controller. |

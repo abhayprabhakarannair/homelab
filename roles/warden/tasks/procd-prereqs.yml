@@ -1,0 +1,17 @@
+# OpenWrt has no useradd; procd drops to this user when starting the service.
+- name: Runtime dependency
+  ansible.builtin.command: apk add python3-paho-mqtt
+  args:
+    creates: /usr/lib/python3.13/site-packages/paho/mqtt/client.py
+
+- name: Service user
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: "^warden:"
+    line: "{{ item.line }}"
+  loop:
+    - {path: /etc/group, line: "warden:x:{{ warden_uid }}:"}
+    - {path: /etc/passwd, line: "warden:x:{{ warden_uid }}:{{ warden_uid }}:warden:/var/empty:/bin/false"}
+    - {path: /etc/shadow, line: "warden:*:0:0:99999:7:::"}
+  loop_control:
+    label: "{{ item.path }}"

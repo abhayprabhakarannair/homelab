@@ -13,6 +13,7 @@ all:
     wardens:
       hosts:
         devil:
+        er605:
     routers:
       hosts:
         er605:
@@ -20,6 +21,7 @@ all:
           ansible_user: root
           ansible_python_interpreter: /usr/bin/python3
           ansible_ssh_transfer_method: piped
+          ansible_become: false
     access_points:
       hosts:
         eap225:

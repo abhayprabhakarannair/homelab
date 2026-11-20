@@ -1,0 +1,24 @@
+# The wake module pings over unprivileged ICMP sockets, allowed only for groups in this range.
+- name: Allow warden's group to ping
+  ansible.posix.sysctl:
+    name: net.ipv4.ping_group_range
+    value: "{{ warden_uid }} {{ warden_uid }}"
+    sysctl_file: /etc/sysctl.d/90-warden.conf
+    reload: true
+
+- name: Service
+  ansible.builtin.template:
+    src: warden.init.j2
+    dest: /etc/init.d/warden
+    mode: "0755"
+  notify: Restart warden
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Running and enabled
+  community.general.openwrt_init:
+    name: warden
+    state: started
+    enabled: true
+  when: not ansible_check_mode
