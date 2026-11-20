@@ -22,6 +22,12 @@
   roles:
     - warden
 
+- name: Routers
+  hosts: routers
+  gather_facts: false
+  roles:
+    - router
+
 - name: Access points
   hosts: access_points
   gather_facts: false

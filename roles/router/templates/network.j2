@@ -1,0 +1,38 @@
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	list ipaddr '127.0.0.1/8'
+
+config globals 'globals'
+	option packet_steering '1'
+
+config device
+	option name 'br-lan'
+	option type 'bridge'
+{% for port in lan_ports %}
+	list ports '{{ port }}'
+{% endfor %}
+
+{% for port in lan_ports %}
+config device
+	option name '{{ port }}'
+	option macaddr '{{ lan_macaddr }}'
+
+{% endfor %}
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '{{ lan_address }}'
+{% for wan in wans %}
+
+config device
+	option name '{{ wan.device }}'
+	option macaddr '{{ wan.macaddr }}'
+
+config interface 'wan_{{ wan.name }}'
+	option device '{{ wan.device }}'
+	option proto 'dhcp'
+	option metric '{{ loop.index * 10 }}'
+	option peerdns '0'
+{% endfor %}

@@ -1,0 +1,11 @@
+# Ordered failover: first entry is primary. MACs are the stock firmware's per-port WAN MACs.
+wans:
+  - {name: bsnl, device: wan1, macaddr: "98:03:8e:71:9d:ba", interval: 1}
+  - {name: railwire, device: lan2, macaddr: "98:03:8e:71:9d:bb", interval: 1}
+  - {name: jio, device: lan3, macaddr: "98:03:8e:71:9d:bc", interval: 5}
+lan_ports: [lan4, lan5]
+lan_macaddr: "98:03:8e:71:9d:b9"
+lan_address: 192.168.0.1/24
+dns_servers: [1.1.1.1, 8.8.8.8]
+track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
+dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts) }}"

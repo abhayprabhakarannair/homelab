@@ -210,3 +210,60 @@
       ansible.builtin.assert:
         that: (clock.stdout | trim | int - now().timestamp() | int) | abs < 60
         quiet: true
+
+- name: Verify routers
+  hosts: routers
+  gather_facts: false
+  tasks:
+    - name: Read failover state
+      ansible.builtin.command: mwan3 interfaces
+      register: mwan3
+      changed_when: false
+
+    - name: Read active policy
+      ansible.builtin.command: mwan3 policies
+      register: policies
+      changed_when: false
+
+    - name: Traffic uses the first online WAN only
+      ansible.builtin.assert:
+        that: policies.stdout is search('failover:\\s+' ~ primary ~ ' \\(100%\\)')
+        quiet: true
+      vars:
+        primary: "{{ mwan3.stdout_lines | select('search', ' is online') | map('split') | map(attribute=1) | first }}"
+
+    - name: Router resolves and reaches the internet
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - nslookup one.one.one.one 127.0.0.1
+        - ping -c1 -W2 1.1.1.1
+      changed_when: false
+
+    - name: Read DHCP config
+      ansible.builtin.command: uci show dhcp
+      register: dhcp
+      changed_when: false
+
+    - name: Every reservation is configured
+      ansible.builtin.assert:
+        that: (".mac='" ~ item.value.mac | lower ~ "'") in dhcp.stdout
+        quiet: true
+      loop: "{{ dhcp_hosts | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      no_log: true
+
+    - name: No IPv6 router advertisements
+      ansible.builtin.command: pgrep odhcpd
+      register: odhcpd
+      changed_when: false
+      failed_when: odhcpd.rc == 0
+
+    - name: Every WAN is tracked online
+      ansible.builtin.assert:
+        that: ("interface wan_" ~ item.name ~ " is online") in mwan3.stdout
+        fail_msg: "{{ mwan3.stdout_lines | select('search', 'wan_' ~ item.name ~ ' ') | join }}"
+        quiet: true
+      loop: "{{ wans }}"
+      loop_control:
+        label: "{{ item.name }}"

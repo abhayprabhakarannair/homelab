@@ -82,13 +82,16 @@ After the install, TP-Link's emergency recovery no longer works and "Adjust UBI 
 
 Steps:
 
-1. Unplug all three WAN cables and keep them out until step 11. With internet access, the stock firmware refuses the locally generated debug password.
-2. Connect devil to LAN1. In the Omada controller, forget the ER605: it resets and comes up standalone at `192.168.0.1`. Set its admin password.
+1. Download and verify everything first, then unplug all three WAN cables and keep them out until step 11. With internet access, the stock firmware refuses the locally generated debug password. Devil stays online on an ISP router's Wi-Fi.
+2. In the Omada controller, forget the ER605: it resets and comes up standalone at `192.168.0.1` after 2–3 minutes. Set its admin password.
 3. Web UI: System Tools → Diagnostics → Remote Assistance → enable.
-4. Generate the CLI debug password with the repo's `er605rootpw.html`, opened locally (inputs: the MAC on the label, the admin username; use the field for 2.2.2–2.2.5).
-5. SSH in, then `enable`, `debug`, and the debug password; the prompt becomes `root@ER605:/#`:
+4. Compute the CLI debug password offline (firmware 2.2.2 and later; the repo's `er605rootpw.html` does the same but loads its md5 library from a CDN). `<MAC>` is the label MAC in upper case with colons:
    ```sh
-   ssh -o KexAlgorithms=+diffie-hellman-group1-sha1 -o HostKeyAlgorithms=+ssh-rsa -c aes128-ctr admin@192.168.0.1
+   echo -n "<MAC>admin<MAC>admin" | md5sum | cut -c1-16
+   ```
+5. SSH in, then `enable`, `debug`, and the debug password; the prompt becomes `root@ER605:/#`. Remote Assistance must be on, or port 22 is closed:
+   ```sh
+   ssh -o HostKeyAlgorithms=ssh-rsa -o PubkeyAuthentication=no -o UserKnownHostsFile=/dev/null admin@192.168.0.1
    ```
    `scp` does not work against this shell; files move over HTTP and netcat.
 6. Back up every MTD partition. Open devil's ports for the backup (9090) and the file server (8080) through homelab: add to `ufw_rules` in `host_vars/devil.yml`
@@ -96,13 +99,39 @@ Steps:
    - {port: "8080", proto: tcp, from_ip: "{{ lan_cidr }}", comment: er605 install files}
    - {port: "9090", proto: tcp, from_ip: "{{ lan_cidr }}", comment: er605 backup}
    ```
-   and apply with `ansible-playbook site.yml --limit devil --check --diff`, then without `--check` (mephisto is unreachable while the house is offline, hence `--limit`). Note devil's address and prepare the backup directory:
+   and apply with `ansible-playbook site.yml --limit devil --check --diff`, then without `--check`. In a directory served over HTTP (step 7) put `backup.sh`, adapted from the installer repo's `MTD_backup` (set `HOST` to devil's address):
    ```sh
-   ip -4 addr show enp14s0
-   mkdir -p ~/er605-backup && cd ~/er605-backup
+   #!/bin/sh
+   HOST=192.168.0.4
+   PORT=9090
+   send() { echo "$1" | busybox nc $HOST $PORT; sleep 1; }
+   echo -n > /tmp/md5sums
+   tail -n+2 /proc/mtd | while read; do
+     DEV=$(echo ${REPLY} | cut -f1 -d:)
+     NAME=$(echo ${REPLY} | cut -f2 -d\")
+     FILE="${DEV}_${NAME}.backup"
+     echo "Backing up ${DEV} (${NAME})"
+     send "$FILE"
+     dd if=/dev/${DEV}ro 2>/dev/null | busybox nc $HOST $PORT
+     echo "$(dd if=/dev/${DEV}ro 2>/dev/null | md5sum | cut -f1 -d' ')  $FILE" >> /tmp/md5sums
+     sleep 1
+   done
+   send proc_mtd.txt; cat /proc/mtd | busybox nc $HOST $PORT; sleep 1
+   send ubinfo.txt; ubinfo -a 2>&1 | busybox nc $HOST $PORT; sleep 1
+   send md5sums; cat /tmp/md5sums | busybox nc $HOST $PORT
+   echo "BACKUP SENT"
    ```
-   Then for each partition `N` listed in the router's `cat /proc/mtd` (save that output too): on devil `nc -l 9090 > mtdN.bin`, on the router `dd if=/dev/mtdNro | busybox nc <devil> 9090`, and compare `md5sum mtdN.bin` on devil with `dd if=/dev/mtdNro | md5sum` on the router. Every partition must match. Also save the output of `ubinfo -a`: it records the stock UBI layout. Copy the directory to a second place off devil.
-7. Serve the install files from devil (`python3 -m http.server 8080` in the directory holding them) and fetch them on the router:
+   On devil, in `~/er605-backup`, run the receiver; then on the router `cd /tmp && curl -o backup.sh http://<devil>:8080/backup.sh && sh backup.sh` (about 5 minutes, 27 partitions):
+   ```sh
+   while true; do
+     NAME=$(nc -d -l 9090); [ -z "$NAME" ] && continue
+     echo "Receiving $NAME"; nc -d -l 9090 > "$NAME"
+     [ "$NAME" = md5sums ] && break
+   done
+   md5sum -c md5sums
+   ```
+   Every partition must report OK and match its size in `proc_mtd.txt`; `mtd3_firmware.backup` is 130809856 bytes. Keep two more copies off devil (2026-11-20: old-devil and mephisto, `er605-backup-2026-11-20.tar.zst`).
+7. Serve the install files from devil (`python3 -m http.server 8080 --bind <devil>` in the directory holding them) and fetch them on the router:
    ```sh
    cd /tmp
    curl -o er605v2_write_initramfs.sh http://<devil>:8080/er605v2_write_initramfs.sh
@@ -111,17 +140,21 @@ Steps:
    chmod +x er605v2_write_initramfs.sh
    ```
    Stop if the md5 differs from the one above.
-8. `./er605v2_write_initramfs.sh openwrt-initramfs-compact.bin`, then `reboot`. Do not cut power while it writes. After 2–3 minutes the installer answers at `http://192.168.1.1` (devil gets a `192.168.1.x` lease).
-9. In the installer: "Adjust UBI Layout" if it shows NOT ADJUSTED; upload the 25.12.6 sysupgrade image; **untick "Keep settings"**; never "Force upgrade". "Image check failed" means Keep settings is still ticked.
-10. After the reboot, LuCI is at `http://192.168.1.1` as `root` with an empty password: set one. Close the ports opened in step 6: add `state: absent` to both entries, apply with `--limit devil` as before, then delete the entries. Removing them without the `absent` run leaves the rules open, because the role never deletes rules it does not know about.
-11. Open the roadmap's step 2 PR (`router` role) and apply it; plug the WAN cables back in (BSNL `wan1`, RailWire `lan2`, Jio `lan3`) and run `verify.yml`.
+8. `./er605v2_write_initramfs.sh openwrt-initramfs-compact.bin` must print `Found kernel ubi partitions (ubi0_7 and ubi0_14)` and `Done!`; only then `reboot`. Do not cut power while it writes. After 2–3 minutes the installer answers at `http://192.168.1.1`. If devil reaches the router through a switch its link never drops, so renew its lease by hand (`nmcli device connect enp14s0`).
+9. In the installer click "Adjust UBI Layout" and wait for ADJUSTED. Its flash button runs `sysupgrade` without `-n` and fails with "Image check failed": the 25.12 image has config version 1.2, the 23.05 installer 1.1. Upload the image through the page anyway (it lands in `/tmp/firmware.bin`), then over SSH (root, no password) check it and flash without keeping settings:
+   ```sh
+   ssh -o UserKnownHostsFile=/dev/null root@192.168.1.1 'sha256sum /tmp/firmware.bin; sysupgrade -T -n /tmp/firmware.bin && sysupgrade -n /tmp/firmware.bin'
+   ```
+   Never `-F`. "Command failed: ubus call system sysupgrade … (Connection failed)" is normal as the session closes.
+10. OpenWrt answers at `192.168.1.1` after about 2 minutes. Install the homelab key and set the root password (as in section A, step 7), then move the LAN to the old subnet so devices keep their leases: `uci set network.lan.ipaddr=192.168.0.1/24 && uci commit network && /etc/init.d/network restart`, and renew devil's lease. Close the ports opened in step 6: add `state: absent` to both entries, apply with `--limit devil` as before, then delete the entries.
+11. Plug BSNL into the WAN port only, apply the `router` role (`site.yml --limit er605 --check --diff`, then without `--check`), then plug RailWire into WAN/LAN1 and Jio into WAN/LAN2 and run `verify.yml`. Before the role, `lan2` and `lan3` are LAN ports: an ISP box plugged in there would serve DHCP to the house.
 
 If the router is not back the same day: BSNL into the spare ISP router; devices re-join its Wi-Fi.
 
 Recovery and return to stock ([forum walkthrough](https://forum.openwrt.org/t/looking-for-info-and-possibility-of-future-support-of-tp-link-omada-er605-router/91868/344), partition offsets match OpenWrt's device tree):
 
 1. Open the case and bridge the R2 and R5 pads with solder. On header J1, counting from the right: pad 1 to the adapter's RX, pad 2 to its TX, pad 3 to GND; leave pad 4 (VCC) unconnected. 3.3 V, 115200 8n1. If nothing prints, swap RX and TX.
-2. Cable devil to LAN5 (`lan5`), add `192.168.0.146/24` to `enp14s0`, open UDP 69 from `lan_cidr` through `ufw_rules` as in step 6, and serve the directory holding `mtd3.bin` over TFTP (`tftp-hpa`: `sudo in.tftpd -L -s <dir>`).
+2. Cable devil to LAN5 (`lan5`), add `192.168.0.146/24` to `enp14s0`, open UDP 69 from `lan_cidr` through `ufw_rules` as in step 6, and serve the directory holding `mtd3_firmware.backup` (renamed to `mtd3.bin`) over TFTP (`tftp-hpa`: `sudo in.tftpd -L -s <dir>`).
 3. Power on; in U-Boot's boot menu choose "2. Upgrade firmware", TFTP client, U-Boot address `192.168.0.10`, server `192.168.0.146`, netmask `255.255.255.0`, file `mtd3.bin`. It loads 130809856 bytes to `0x80010000`; the automatic erase that follows has been seen to fail, so finish from the U-Boot console:
    ```
    mtdparts

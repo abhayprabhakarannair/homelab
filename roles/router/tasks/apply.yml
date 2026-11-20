@@ -1,0 +1,36 @@
+# reload_config restarts the network under this SSH session, so it and the rollback
+# timer run detached. If Ansible cannot reach the router again and confirm within
+# router_rollback_after seconds, the router restores the snapshot taken before templating.
+- name: Clear previous confirmation
+  ansible.builtin.file:
+    path: /tmp/config.confirmed
+    state: absent
+
+- name: Arm rollback
+  ansible.builtin.shell: |
+    sleep {{ router_rollback_after }}
+    [ -f /tmp/config.confirmed ] && exit 0
+    cp -a /tmp/config.rollback/. /etc/config/
+    /etc/init.d/mwan3 stop
+    reload_config
+  async: "{{ router_rollback_after + 60 }}"
+  poll: 0
+  changed_when: false
+
+- name: Reload config
+  ansible.builtin.shell: sleep 2 && reload_config && /etc/init.d/system reload && /etc/init.d/mwan3 restart
+  async: 60
+  poll: 0
+  changed_when: true
+
+- name: Reconnect after the network restart
+  ansible.builtin.wait_for_connection:
+    delay: 15
+    timeout: 60
+
+- name: Confirm config
+  ansible.builtin.file:
+    path: /tmp/config.confirmed
+    state: touch
+    mode: "0600"
+  changed_when: false
