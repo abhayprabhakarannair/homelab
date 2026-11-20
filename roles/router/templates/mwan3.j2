@@ -18,11 +18,13 @@ config interface 'wan_{{ wan.name }}'
 {% if loop.first %}
 	list flush_conntrack 'disconnected'
 {% endif %}
+{% for position in range(1, wans | length + 1) %}
 
-config member 'wan_{{ wan.name }}_m{{ loop.index }}'
+config member 'wan_{{ wan.name }}_m{{ position }}'
 	option interface 'wan_{{ wan.name }}'
-	option metric '{{ loop.index }}'
+	option metric '{{ position }}'
 	option weight '1'
+{% endfor %}
 {% endfor %}
 
 config policy 'failover'
@@ -30,6 +32,22 @@ config policy 'failover'
 	list use_member 'wan_{{ wan.name }}_m{{ loop.index }}'
 {% endfor %}
 	option last_resort 'unreachable'
+{% for primary in wan_preferences.values() | unique | sort %}
+{% set order = [primary] + (wans | map(attribute='name') | reject('eq', primary) | list) %}
+
+config policy 'prefer_{{ primary }}'
+{% for name in order %}
+	list use_member 'wan_{{ name }}_m{{ loop.index }}'
+{% endfor %}
+	option last_resort 'unreachable'
+{% endfor %}
+{% for device, primary in wan_preferences | dictsort %}
+
+config rule 'device_{{ device | replace('-', '_') }}'
+	option src_ip '{{ dhcp_hosts[device].ip }}'
+	option family 'ipv4'
+	option use_policy 'prefer_{{ primary }}'
+{% endfor %}
 
 config rule 'default'
 	option dest_ip '0.0.0.0/0'

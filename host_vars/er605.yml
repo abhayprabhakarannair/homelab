@@ -2,7 +2,7 @@
 wans:
   - {name: bsnl, device: wan1, macaddr: "98:03:8e:71:9d:ba", interval: 1}
   - {name: railwire, device: lan2, macaddr: "98:03:8e:71:9d:bb", interval: 1}
-  - {name: jio, device: lan3, macaddr: "98:03:8e:71:9d:bc", interval: 5}
+  - {name: jio, device: lan3, macaddr: "98:03:8e:71:9d:bc", interval: 1}
 lan_ports: [lan4, lan5]
 lan_macaddr: "98:03:8e:71:9d:b9"
 lan_address: 192.168.0.1/24
@@ -11,6 +11,9 @@ track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
 # Names whose public records point at tailnet addresses; dnsmasq's rebind protection drops them otherwise.
 rebind_domains: ["mephisto.{{ domain }}"]
 dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts) }}"
+# Devices whose traffic prefers another ISP; the rest of `wans` stays as fallback in order. Keys are dhcp_hosts names.
+wan_preferences:
+  jio-stb: jio
 
 warden_init: procd
 warden_uid: 200
