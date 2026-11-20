@@ -1,0 +1,125 @@
+- name: Runtime dependency
+  community.general.pacman:
+    name: python-paho-mqtt
+    state: present
+
+- name: System group
+  ansible.builtin.group:
+    name: warden
+    system: true
+
+- name: System user
+  ansible.builtin.user:
+    name: warden
+    group: warden
+    system: true
+    shell: /usr/bin/nologin
+    home: /
+    create_home: false
+
+- name: Code root
+  ansible.builtin.file:
+    path: /opt/warden
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Stage the committed warden tree
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -rf "{{ warden_stage }}"
+    mkdir -p "{{ warden_stage }}"
+    git -C "{{ warden.repo }}" archive HEAD warden | tar -x -C "{{ warden_stage }}"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+
+- name: List staged files
+  ansible.builtin.find:
+    paths: "{{ warden_stage }}/warden"
+    recurse: true
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  register: warden_staged
+
+- name: Code
+  ansible.builtin.copy:
+    src: "{{ warden_stage }}/warden/"
+    dest: /opt/warden/warden/
+    owner: root
+    group: root
+    mode: "0644"
+    directory_mode: "0755"
+  notify: Restart warden
+
+- name: List deployed files
+  ansible.builtin.find:
+    paths: /opt/warden/warden
+    recurse: true
+  register: warden_deployed
+
+- name: Remove files that are no longer in the repo
+  ansible.builtin.file:
+    path: "/opt/warden/warden/{{ item }}"
+    state: absent
+  loop: "{{ deployed | difference(staged) }}"
+  vars:
+    deployed: "{{ warden_deployed.files | map(attribute='path') | map('regex_replace', '^/opt/warden/warden/', '') }}"
+    staged: "{{ warden_staged.files | map(attribute='path') | map('relpath', warden_stage ~ '/warden') }}"
+  notify: Restart warden
+
+- name: Config directory
+  ansible.builtin.file:
+    path: /etc/warden
+    state: directory
+    owner: root
+    group: warden
+    mode: "0750"
+
+- name: MQTT password
+  ansible.builtin.copy:
+    dest: /etc/warden/password
+    content: "{{ secrets.mqtt[inventory_hostname] }}\n"
+    owner: root
+    group: warden
+    mode: "0640"
+  no_log: true
+  notify: Restart warden
+
+- name: Environment
+  ansible.builtin.template:
+    src: env.j2
+    dest: /etc/warden/env
+    owner: root
+    group: warden
+    mode: "0640"
+  notify: Restart warden
+
+- name: Polkit rule
+  ansible.builtin.template:
+    src: 50-warden.rules.j2
+    dest: /etc/polkit-1/rules.d/50-warden.rules
+    mode: "0644"
+
+- name: Unit
+  ansible.builtin.template:
+    src: warden.service.j2
+    dest: /etc/systemd/system/warden.service
+    mode: "0644"
+  notify: Restart warden
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Running and enabled
+  ansible.builtin.systemd_service:
+    name: warden.service
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode

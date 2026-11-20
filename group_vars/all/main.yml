@@ -20,3 +20,6 @@ imp:
   repo: "{{ lookup('env', 'HOME') }}/Projects/imp"
   ota_port: 3233
   wakes: [devil]
+
+warden:
+  repo: "{{ lookup('env', 'HOME') }}/Projects/warden"

@@ -10,3 +10,6 @@ all:
           ansible_connection: local
           ansible_python_interpreter: /usr/bin/python3
           ansible_become_password: "{{ secrets.become.devil }}"
+    wardens:
+      hosts:
+        devil:

@@ -101,6 +101,17 @@
       changed_when: false
       no_log: true
 
+    - name: Every warden host announces itself
+      ansible.builtin.command: >-
+        {{ sub }} {{ console }} -C 2 -t {{ topic_root }}/{{ item }}/status -t {{ topic_root }}/{{ item }}/meta
+      loop: "{{ groups['wardens'] }}"
+      register: wardens
+      changed_when: false
+      failed_when: >-
+        wardens.stdout_lines | length != 2 or 'online' not in wardens.stdout_lines
+        or (wardens.stdout_lines | reject('eq', 'online') | first | from_json).kind != 'warden'
+      no_log: true
+
     - name: Read tailnet name
       ansible.builtin.command: tailscale status --self --json
       register: status

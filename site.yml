@@ -14,3 +14,9 @@
   become: true
   roles:
     - workstation
+
+- name: Wardens
+  hosts: wardens
+  become: true
+  roles:
+    - warden
