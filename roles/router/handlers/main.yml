@@ -1,0 +1,2 @@
+- name: Apply router config
+  ansible.builtin.include_tasks: apply.yml

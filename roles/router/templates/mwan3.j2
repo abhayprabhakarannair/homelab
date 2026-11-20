@@ -1,0 +1,37 @@
+
+config globals 'globals'
+	option mmx_mask '0x3F00'
+{% for wan in wans %}
+
+config interface 'wan_{{ wan.name }}'
+	option enabled '1'
+	option family 'ipv4'
+{% for ip in track_ips %}
+	list track_ip '{{ ip }}'
+{% endfor %}
+	option reliability '1'
+	option count '1'
+	option timeout '1'
+	option interval '{{ wan.interval }}'
+	option down '3'
+	option up '5'
+{% if loop.first %}
+	list flush_conntrack 'disconnected'
+{% endif %}
+
+config member 'wan_{{ wan.name }}_m{{ loop.index }}'
+	option interface 'wan_{{ wan.name }}'
+	option metric '{{ loop.index }}'
+	option weight '1'
+{% endfor %}
+
+config policy 'failover'
+{% for wan in wans %}
+	list use_member 'wan_{{ wan.name }}_m{{ loop.index }}'
+{% endfor %}
+	option last_resort 'unreachable'
+
+config rule 'default'
+	option dest_ip '0.0.0.0/0'
+	option family 'ipv4'
+	option use_policy 'failover'

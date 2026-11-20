@@ -24,5 +24,7 @@ Hub of a four-repo system (homelab, imp, warden, console, all in `~/Projects`). 
 - Caddy config is validated with the real env file (a dummy Cloudflare token fails validation).
 - gitleaks flags well-known sample secrets (e.g. the RFC 6455 WebSocket key); generate test values at runtime.
 - The Claude review action skips PRs that change `.github/workflows/code-review.yml`.
-- OpenWrt hosts have no Python: `raw` only. `raw` is skipped in check mode unless `check_mode: false`, and its stdout has CRLF line endings (use `stdout_lines`).
+- eap225 has no room for Python: `raw` only. `raw` is skipped in check mode unless `check_mode: false`, and its stdout has CRLF line endings (use `stdout_lines`).
+- er605 runs Ansible modules with the full `python3` package (`python3-light` lacks `decimal` and `encodings.idna`) and `ansible_ssh_transfer_method: piped` (dropbear has no sftp).
+- Dropbear kills an SSH session's background jobs on logout, `nohup` included: detach with `async`/`poll: 0`.
 - Stock TP-Link SSH (dropbear 2018) drops OpenSSH 10's long host-key list: use `-o HostKeyAlgorithms=ssh-rsa` (no `+`).

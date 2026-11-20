@@ -1,0 +1,35 @@
+# Runs even in check mode: every later module needs Python. Reinstalled after each OpenWrt upgrade.
+- name: Install Python
+  ansible.builtin.raw: command -v python3 >/dev/null || { apk update && apk add python3; }
+  register: router_python
+  changed_when: "'OK:' in router_python.stdout"
+  check_mode: false
+
+- name: Install mwan3
+  ansible.builtin.command: apk add mwan3
+  args:
+    creates: /usr/sbin/mwan3
+  register: router_mwan3
+
+- name: Snapshot config for rollback
+  ansible.builtin.command: cp -a /etc/config/. /tmp/config.rollback/
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Write config
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/config/{{ item }}
+    mode: "0644"
+  loop: [system, network, dhcp, firewall, mwan3]
+  notify: Apply router config
+
+- name: Service state
+  community.general.openwrt_init:
+    name: "{{ item.name }}"
+    enabled: "{{ item.enabled }}"
+    state: "{{ 'started' if item.enabled else 'stopped' }}"
+  loop:
+    - {name: odhcpd, enabled: false}
+    - {name: mwan3, enabled: true}
+  when: not (ansible_check_mode and item.name == 'mwan3' and router_mwan3 is changed)
