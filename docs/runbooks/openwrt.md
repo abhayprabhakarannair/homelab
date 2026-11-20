@@ -7,7 +7,7 @@ Target release: OpenWrt 25.12.6. Check [downloads.openwrt.org](https://downloads
 ## Before either device
 
 - [ ] Spare ISP router ready to take the BSNL line if er605 is down for longer than planned.
-- [ ] USB-to-serial adapter, 3.3 V (CP2102 or CH340). The only way to recover a device whose firmware does not boot.
+- [ ] USB-to-serial adapter, 3.3 V (CP2102 or CH340), jumper wires and a soldering iron: both devices need two solder bridges before their serial console works. The only way to recover a device whose firmware does not boot.
 - [ ] `openbsd-netcat` on devil (`sudo pacman -S openbsd-netcat`) for the er605 backup.
 - [ ] Omada auto-upgrade stays off; no firmware upgrades on either device. er605 firmware 2.2.6 and later block the install; newer EAP firmware drops `cliclientd`.
 - [ ] Images downloaded to devil and checked against the release's `sha256sums`:
@@ -73,12 +73,7 @@ MT7621, 256 MiB RAM, 128 MiB NAND. The house is offline from step 1 until the `r
 
 The official initramfs (6.4 MB) does not fit the stock kernel volume (5 MiB), so the install goes through the community image `openwrt-initramfs-compact.bin` (OpenWrt 23.05.0, 4.6 MB) from [chill1Penguin/er605v2_openwrt_install](https://github.com/chill1Penguin/er605v2_openwrt_install). It only runs long enough to install the official sysupgrade image. md5 `e06dd6da68b739b2544931a0203292db` (the repo's `md5sums` and [nicobm's guide](https://nicobm.github.io/er605-v2-openwrt/) agree).
 
-After the install, TP-Link's emergency recovery no longer works; the way back to stock is the flash backup from step 6.
-
-**Blocking, resolve before step 1:**
-
-- [ ] Serial header location, pinout and voltage for the ER605 v2 (the OpenWrt device page; the console is `ttyS0` at 115200).
-- [ ] The exact command that writes the `firmware` (mtd3) backup back, confirmed from a primary source for the format step 6 produces. The wrong one (`mtd write` versus `ubiformat`) can destroy the NAND's bad-block information.
+After the install, TP-Link's emergency recovery no longer works and "Adjust UBI Layout" changes the flash layout, so the only proven way back to stock is the serial console plus the `firmware` (mtd3) backup from step 6 (see Recovery below).
 
 Steps:
 
@@ -101,7 +96,7 @@ Steps:
    ip -4 addr show enp14s0
    mkdir -p ~/er605-backup && cd ~/er605-backup
    ```
-   Then for each partition `N` listed in the router's `cat /proc/mtd` (save that output too): on devil `nc -l 9090 > mtdN.bin`, on the router `dd if=/dev/mtdNro | busybox nc <devil> 9090`, and compare `md5sum mtdN.bin` on devil with `dd if=/dev/mtdNro | md5sum` on the router. Every partition must match. Copy the directory to a second place off devil.
+   Then for each partition `N` listed in the router's `cat /proc/mtd` (save that output too): on devil `nc -l 9090 > mtdN.bin`, on the router `dd if=/dev/mtdNro | busybox nc <devil> 9090`, and compare `md5sum mtdN.bin` on devil with `dd if=/dev/mtdNro | md5sum` on the router. Every partition must match. Also save the output of `ubinfo -a`: it records the stock UBI layout. Copy the directory to a second place off devil.
 7. Serve the install files from devil (`python3 -m http.server 8080` in the directory holding them) and fetch them on the router:
    ```sh
    cd /tmp
@@ -117,6 +112,19 @@ Steps:
 11. Open the roadmap's step 2 PR (`router` role) and apply it; plug the WAN cables back in (BSNL `wan1`, RailWire `lan2`, Jio `lan3`) and run `verify.yml`.
 
 If the router is not back the same day: BSNL into the spare ISP router; devices re-join its Wi-Fi.
+
+Recovery and return to stock ([forum walkthrough](https://forum.openwrt.org/t/looking-for-info-and-possibility-of-future-support-of-tp-link-omada-er605-router/91868/344), partition offsets match OpenWrt's device tree):
+
+1. Open the case and bridge the R2 and R5 pads with solder. On header J1, counting from the right: pad 1 to the adapter's RX, pad 2 to its TX, pad 3 to GND; leave pad 4 (VCC) unconnected. 3.3 V, 115200 8n1. If nothing prints, swap RX and TX.
+2. Cable devil to LAN5 (`lan5`), add `192.168.0.146/24` to `enp14s0`, open UDP 69 from `lan_cidr` through `ufw_rules` as in step 6, and serve the directory holding `mtd3.bin` over TFTP (`tftp-hpa`: `sudo in.tftpd -L -s <dir>`).
+3. Power on; in U-Boot's boot menu choose "2. Upgrade firmware", TFTP client, U-Boot address `192.168.0.10`, server `192.168.0.146`, netmask `255.255.255.0`, file `mtd3.bin`. It loads 130809856 bytes to `0x80010000`; the automatic erase that follows has been seen to fail, so finish from the U-Boot console:
+   ```
+   mtdparts
+   nand erase 0x00140000 0x07cc0000
+   nand write 0x80010000 0x00140000 0x07cc0000
+   ```
+   Check that `mtdparts` shows `firmware` at offset `0x00140000`, size `0x07cc0000` before erasing. "skipping bad block" messages are expected.
+4. Reboot into the stock firmware and re-flash 2.2.5 from its web UI (System Tools → Management → Firmware Upgrade).
 
 ## C. After both
 
