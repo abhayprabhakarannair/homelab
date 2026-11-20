@@ -3,16 +3,19 @@
     name: python-paho-mqtt
     state: present
 
-- name: System user
-  ansible.builtin.copy:
-    dest: /etc/sysusers.d/warden.conf
-    content: |
-      u warden - "warden agent" - -
-    mode: "0644"
-  notify: Create warden user
+- name: System group
+  ansible.builtin.group:
+    name: warden
+    system: true
 
-- name: Create the user before anything is owned by it
-  ansible.builtin.meta: flush_handlers
+- name: System user
+  ansible.builtin.user:
+    name: warden
+    group: warden
+    system: true
+    shell: /usr/bin/nologin
+    home: /
+    create_home: false
 
 - name: Code root
   ansible.builtin.file:
