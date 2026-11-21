@@ -145,8 +145,10 @@
         router_state.rc != 0
         or links | map(attribute='name') | list != hostvars[item].wans | map(attribute='name') | list
         or links | selectattr('status', 'eq', 'online') | rejectattr('used_bytes', 'defined') | list != []
+        or wan.usage_error is defined
       vars:
-        links: "{{ (router_state.stdout | from_json).wan.links }}"
+        wan: "{{ (router_state.stdout | from_json).wan }}"
+        links: "{{ wan.links }}"
       no_log: true
 
     - name: Console page is served over HTTPS
