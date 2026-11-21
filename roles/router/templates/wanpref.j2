@@ -1,7 +1,8 @@
 #!/bin/sh
 # rpcd exec plugin, run as root: `ubus call wanpref set '{"ip":"…","isp":"<isp>|auto"}'`.
 # Only the warden user may call it (/usr/share/acl.d/warden.json). Routes one LAN device through one ISP,
-# then drops that device's tracked connections so it moves at once.
+# then drops that device's tracked connections so it moves at once. Only DHCP reservations can be routed (an
+# override follows the address, which another device could lease next); auto is allowed for any LAN address.
 
 . /usr/share/libubox/jshn.sh
 
@@ -31,6 +32,7 @@ call)
 	"$ip"|''|0*|*[!0-9]*) fail "not a LAN address" ;;
 	esac
 	[ "$octet" -ge 1 ] && [ "$octet" -le 254 ] || fail "not a LAN address"
+	[ "$isp" = auto ] || /usr/libexec/wanpref-sync reserved "$ip" || fail "not a reserved address"
 	case "$isp" in
 	auto) rm -f "/tmp/wanpref/$ip" ;;
 {% for wan in wans %}
