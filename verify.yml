@@ -121,13 +121,16 @@
       failed_when: retained.rc not in [0, 27]
       no_log: true
 
-    # A device removed from mqtt.devices cannot clear its own retained topics; the console would keep its card.
+    # A device removed from mqtt.devices cannot clear its own retained topics, and the console would keep its card:
+    # clear them with its credentials first.
     - name: Retained topics belong only to current devices
       ansible.builtin.assert:
         that:
           - retained.stdout_lines != []
           - unknown == []
-        fail_msg: "Retained topics of removed devices: {{ unknown }}"
+        fail_msg: >-
+          Retained topics of removed devices: {{ unknown }}. Put the id back in mqtt.devices, apply, publish empty
+          retained payloads to its meta, status and state as that user (mosquitto_pub -r -n), then remove it again.
         quiet: true
       vars:
         unknown: >-
