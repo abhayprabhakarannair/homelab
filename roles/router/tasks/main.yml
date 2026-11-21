@@ -9,7 +9,8 @@
 - name: Install packages
   ansible.builtin.raw: |
     for p in mwan3:/usr/sbin/mwan3 vnstat2:/usr/sbin/vnstatd conntrack:/usr/sbin/conntrack \
-      sqm-scripts:/usr/lib/sqm/run.sh adblock:/usr/bin/adblock.sh; do
+      sqm-scripts:/usr/lib/sqm/run.sh adblock:/usr/bin/adblock.sh \
+      https-dns-proxy:/usr/sbin/https-dns-proxy; do
       [ -e "${p#*:}" ] && continue
       echo "${p%%:*}"
       {{ ':' if ansible_check_mode else 'apk add "${p%%:*}" >/dev/null || exit 1' }}
@@ -125,6 +126,7 @@
     want {{ s }} off
     {% endfor %}
     want mwan3 on
+    want https-dns-proxy on
     want sqm enabled
     want cron on
     want adblock enabled

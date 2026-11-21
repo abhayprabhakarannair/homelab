@@ -1,4 +1,4 @@
-router_configs: [system, network, dhcp, firewall, mwan3, vnstat, sqm]
+router_configs: [system, network, dhcp, firewall, mwan3, vnstat, sqm, https-dns-proxy]
 router_scripts:
   - {src: wanpref-sync.j2, path: /usr/libexec/wanpref-sync, mode: "0755"}
   - {src: wanpref.j2, path: /usr/libexec/rpcd/wanpref, mode: "0755"}
