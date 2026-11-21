@@ -31,11 +31,20 @@
 - name: Apply pending changes
   ansible.builtin.meta: flush_handlers
 
+# The enumerator is a oneshot that exits, so "started" would report a change on every run: enable it only. It
+# runs at boot through nut.target, and the handler runs it when the config changes.
+- name: Driver enumerator enabled
+  ansible.builtin.systemd_service:
+    name: nut-driver-enumerator.service
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode
+
 - name: Driver, server and monitor running and enabled
   ansible.builtin.systemd_service:
     name: "{{ item }}"
     state: started
     enabled: true
     daemon_reload: true
-  loop: [nut-driver-enumerator.path, nut-driver-enumerator.service, nut-server.service, nut-monitor.service, nut.target]
+  loop: [nut-driver-enumerator.path, nut-server.service, nut-monitor.service, nut.target]
   when: not ansible_check_mode
