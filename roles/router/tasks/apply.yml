@@ -18,7 +18,8 @@
   changed_when: false
 
 - name: Reload config
-  ansible.builtin.shell: sleep 2 && reload_config && /etc/init.d/system reload && /etc/init.d/mwan3 restart
+  ansible.builtin.shell: >-
+    sleep 2 && reload_config && /etc/init.d/system reload && /etc/init.d/mwan3 restart && /etc/init.d/sqm restart
   async: 60
   poll: 0
   changed_when: true
