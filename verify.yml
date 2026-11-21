@@ -275,25 +275,32 @@
         label: "{{ item.key }}"
       no_log: true
 
-    # OpenWrt's busybox has no su: drop to warden's uid in Python.
+    # OpenWrt's busybox has no su: drop to warden's uid in Python. As warden: a non-LAN address is refused; an
+    # override for .254 (outside the DHCP pool, no device) is written readable; then it is cleared whatever happened.
     - name: The ISP switch is callable by warden, refuses non-LAN addresses, and its overrides are readable
       ansible.builtin.command:
         argv:
           - python3
           - -c
           - |
-            import os, subprocess, sys
+            import json, os, subprocess, sys
             os.setgid({{ warden_uid }})
             os.setuid({{ warden_uid }})
-            request = '{"ip":"198.51.100.1","isp":"auto"}'
-            code = subprocess.run(["ubus", "call", "wanpref", "set", request]).returncode
-            if os.path.isdir("/tmp/wanpref"):
+            def call(ip, isp):
+                out = subprocess.run(["ubus", "call", "wanpref", "set", json.dumps({"ip": ip, "isp": isp})],
+                                     capture_output=True, text=True, check=True).stdout
+                return json.loads(out)
+            assert call("198.51.100.1", "auto") == {"error": "not a LAN address"}
+            probe = "{{ (lan_address | split('.'))[:3] | join('.') }}.254"
+            try:
+                assert call(probe, "{{ wans[0].name }}") == {"ip": probe, "isp": "{{ wans[0].name }}"}
+                assert open(f"/tmp/wanpref/{probe}").read().strip() == "{{ wans[0].name }}"
                 for name in os.listdir("/tmp/wanpref"):
                     open(os.path.join("/tmp/wanpref", name)).read()
-            sys.exit(code)
+            finally:
+                call(probe, "auto")
       register: wanpref
       changed_when: false
-      failed_when: wanpref.rc != 0 or (wanpref.stdout | from_json).error != 'not a LAN address'
 
     - name: No IPv6 router advertisements
       ansible.builtin.command: pgrep odhcpd
