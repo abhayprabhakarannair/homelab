@@ -353,3 +353,35 @@
       changed_when: down | length > 0
       vars:
         down: "{{ mwan3.stdout_lines | select('search', 'interface wan_') | reject('search', ' is online') | list }}"
+
+- name: Verify OpenWrt upgrades
+  hosts: routers:access_points
+  gather_facts: false
+  tasks:
+    - name: List what sysupgrade keeps
+      ansible.builtin.raw: sysupgrade -l
+      register: kept
+      changed_when: false
+
+    - name: An upgrade keeps the first-boot script and the keep lists
+      ansible.builtin.assert:
+        that:
+          - "'/etc/owut.d/homelab-init.sh' in kept.stdout_lines"
+          - kept.stdout_lines | select('match', '/lib/upgrade/keep.d/homelab-') | list | length == 1
+        quiet: true
+
+    - name: Check for firmware updates
+      ansible.builtin.raw: owut check && owut versions
+      register: owut
+      changed_when: false
+
+    # Reported, not failed: upgrade.yml applies them when convenient.
+    - name: Report firmware updates
+      ansible.builtin.debug:
+        msg: "{{ pending }}"
+      changed_when: pending | length > 0
+      vars:
+        pending: >-
+          {{ (owut.stdout_lines | map('trim') | select('search', 'out-of-date$') | list)
+             + (owut.stdout_lines | map('trim') | select('search', '\\(installed')
+                | reject('search', 'latest') | list) }}

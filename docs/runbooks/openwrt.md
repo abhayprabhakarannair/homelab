@@ -167,3 +167,16 @@ Recovery and return to stock ([forum walkthrough](https://forum.openwrt.org/t/lo
 ## C. After both
 
 Power off old-devil and remove it from `~/.ssh/config`; its Omada backup on devil (`~/omada-backup`) is no longer needed once the `router` and `ap` roles are applied.
+
+## D. Upgrading
+
+Firmware and packages are upgraded together with `upgrade.yml`, never with `apk upgrade`: an upgraded package is stored again on the writable overlay next to its copy in the read-only image, and eap225 has 5.8 MB of overlay. `verify.yml` reports pending updates (packages rebuilt since the release, or a newer release in the branch).
+
+`owut` asks OpenWrt's build server (ASU, the Image Builder run by the project) for a sysupgrade image of the release with current package revisions and every installed package, so Python, mwan3, vnstat and warden's dependencies are in the image. sysupgrade keeps `/etc/config`, package conffiles and the keep lists the roles deploy (`/lib/upgrade/keep.d/homelab-*` and `warden`: usage database, warden, ISP override helper, AP's API ACL). Services the roles keep off (odhcpd on both, dnsmasq on eap225) come back enabled in a new image, so the roles also deploy `/etc/owut.d/homelab-init.sh`, which `upgrade.yml` passes to the build as its first-boot script. It goes to the build server and into a downloadable image: keep secrets out of it.
+
+1. `site.yml` applied from `main` (the playbook refuses to start without the keep lists and first-boot script).
+2. `ansible-playbook upgrade.yml --check`: reports which devices have updates. `-e upgrade_version=25.12.7` moves to another release (`owut versions` lists them); without it the installed release is rebuilt with current packages.
+3. `ansible-playbook upgrade.yml`: eap225, then er605. Per device: `owut check` (stops if nothing changed or packages would be downgraded), a config backup to `~/openwrt-backups/<host>-<time>.tar.gz` on devil (contains `/etc/shadow`, the Wi-Fi key and warden's password: private, not in the repo), `owut download --init-script …` (builds for a few minutes, verifies the checksum and sysupgrade's image check), `owut install` (procd flashes and reboots; the SSH session dropping is expected), then waits for SSH and checks that `owut check` finds no changes. er605 takes the house offline for a few minutes.
+4. `ansible-playbook site.yml --check --diff`: no changes expected. Then `verify.yml`.
+
+Never `--force` (it allows downgrades and rebuilds with nothing to change) or `--rootfs-size` (loses the config). If the server is down, wait; build with the Image Builder in a Podman container on devil only if that ever lasts. A device that does not come back: restore the backup with `sysupgrade -r` after reflashing the release image, or recover over serial as in sections A and B.

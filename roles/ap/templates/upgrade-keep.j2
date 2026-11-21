@@ -1,0 +1,4 @@
+# Files sysupgrade keeps besides /etc/config and package conffiles; this list keeps itself.
+{% for f in ap_files if not f.path.startswith('/etc/config/') and not f.path.startswith('/etc/owut.d/') %}
+{{ f.path }}
+{% endfor %}

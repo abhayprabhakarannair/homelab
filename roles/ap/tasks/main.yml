@@ -38,10 +38,10 @@
   no_log: true
   notify: Reload OpenWrt config
 
-# er605 is the LAN's only DHCP server. In check mode the loop only lists what it would disable.
+# In check mode the loop only lists what it would disable.
 - name: Disable DHCP and router advertisements
   ansible.builtin.raw: |
-    for s in dnsmasq odhcpd; do
+    for s in {{ ap_services_off | join(' ') }}; do
       /etc/init.d/$s enabled || continue
       {{ 'true' if ansible_check_mode else '/etc/init.d/$s disable && /etc/init.d/$s stop' }}
       echo "disabled $s"

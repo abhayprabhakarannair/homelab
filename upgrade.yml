@@ -1,0 +1,15 @@
+# Upgrades OpenWrt in place with owut: the official build server builds the release with current package
+# revisions and everything installed, and the device keeps its config. Run by hand, never from site.yml:
+#   ansible-playbook upgrade.yml [-e upgrade_version=25.12.7]
+# Then `site.yml --check --diff` (expect no changes) and `verify.yml`; see docs/runbooks/openwrt.md.
+- name: Access point first
+  hosts: access_points
+  gather_facts: false
+  roles:
+    - upgrade
+
+- name: Then the router
+  hosts: routers
+  gather_facts: false
+  roles:
+    - upgrade

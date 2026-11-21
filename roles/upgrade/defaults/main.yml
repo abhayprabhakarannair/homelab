@@ -1,0 +1,4 @@
+# Release to move to (`owut versions` lists them); by default the installed one with current packages.
+upgrade_version: ""
+upgrade_backup_dir: ~/openwrt-backups
+upgrade_owut_version: "{{ '--version-to ' ~ upgrade_version if upgrade_version else '' }}"

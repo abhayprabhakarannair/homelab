@@ -4,6 +4,8 @@ warden_init_files:
     - {src: warden.service.j2, path: /etc/systemd/system/warden.service, mode: "0644"}
   procd:
     - {src: warden.init.j2, path: /etc/init.d/warden, mode: "0755"}
+    # OpenWrt's sysupgrade keeps the files listed here.
+    - {src: upgrade-keep.j2, path: /lib/upgrade/keep.d/warden, mode: "0644"}
 warden_files: >-
   {{ [{'path': '/opt/warden', 'mode': '0755', 'dir': true},
       {'path': '/opt/warden/warden.tar.gz', 'mode': '0644'},
