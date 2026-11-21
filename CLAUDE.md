@@ -1,6 +1,6 @@
 # homelab
 
-Hub of a four-repo system (homelab, imp, warden, console, all in `~/Projects`). Read these before changing anything; update them in the same PR when a change affects them:
+Hub of a three-repo system (homelab, warden, console, all in `~/Projects`; imp is archived). Read these before changing anything; update them in the same PR when a change affects them:
 
 @docs/architecture.md
 @docs/decisions.md
