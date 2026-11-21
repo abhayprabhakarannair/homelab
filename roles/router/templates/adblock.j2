@@ -1,0 +1,19 @@
+
+config adblock 'global'
+	option adb_enabled '1'
+	option adb_dns 'dnsmasq'
+	option adb_fetchcmd 'uclient-fetch'
+{% for wan in wans %}
+	list adb_trigger 'wan_{{ wan.name }}'
+{% endfor %}
+	list adb_feed 'hagezi'
+	list adb_hag_feed 'wildcard/{{ router_adblock_hagezi }}-onlydomains.txt'
+	option adb_nftbridge '1'
+	option adb_bridgednsv4 '{{ dns_servers[0] }}'
+{% if router_adblock_exempt %}
+	option adb_nftallow '1'
+	option adb_allowdnsv4 '{{ dns_servers[0] }}'
+{% for name in router_adblock_exempt %}
+	list adb_nftmacallow '{{ dhcp_hosts[name].mac | lower }}'
+{% endfor %}
+{% endif %}

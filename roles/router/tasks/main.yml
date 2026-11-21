@@ -9,7 +9,7 @@
 - name: Install packages
   ansible.builtin.raw: |
     for p in mwan3:/usr/sbin/mwan3 vnstat2:/usr/sbin/vnstatd conntrack:/usr/sbin/conntrack \
-      sqm-scripts:/usr/lib/sqm/run.sh; do
+      sqm-scripts:/usr/lib/sqm/run.sh adblock:/usr/bin/adblock.sh; do
       [ -e "${p#*:}" ] && continue
       echo "${p%%:*}"
       {{ ':' if ansible_check_mode else 'apk add "${p%%:*}" >/dev/null || exit 1' }}
@@ -61,6 +61,17 @@
     - Reload ubus services
     - Sync ISP overrides
 
+- name: Ad blocking
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ mirror_copy.work }}{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ router_adblock_files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  delegate_to: localhost
+  notify: Restart adblock
+
 - name: Upgrade keep list and first-boot script
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -97,7 +108,8 @@
 - name: Service state
   ansible.builtin.raw: |
     check={{ ansible_check_mode | int }}
-    # enabled: started by hotplug and reload triggers rather than kept running (sqm has no procd instance).
+    # enabled: started by hotplug, reload and interface triggers rather than kept running (sqm has no procd
+    # instance; the adblock instance exits once the blocklist is loaded).
     want() {
       if [ "$2" != off ]; then
         /etc/init.d/$1 enabled || { echo "$1 enable"; [ "$check" = 1 ] || /etc/init.d/$1 enable; }
@@ -114,6 +126,8 @@
     {% endfor %}
     want mwan3 on
     want sqm enabled
+    want cron on
+    want adblock enabled
   register: router_services
   changed_when: router_services.stdout | trim | length > 0
   check_mode: false

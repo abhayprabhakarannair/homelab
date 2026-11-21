@@ -1,2 +1,5 @@
 router_rollback_after: 120
 router_cycle_day: 1
+router_adblock_hagezi: pro
+router_adblock_exempt: []
+router_adblock_allowlist: []

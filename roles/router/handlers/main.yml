@@ -13,3 +13,11 @@
 - name: Sync ISP overrides
   ansible.builtin.raw: /usr/libexec/wanpref-sync
   changed_when: true
+
+# restart rebuilds the blocklist from the feed copies in RAM and reloads the exemptions; only reload downloads.
+# The init script refuses while a run is in progress (the package starts one on install, cron and WAN events too).
+- name: Restart adblock
+  ansible.builtin.raw: |
+    for _ in $(seq 60); do /etc/init.d/adblock running || break; sleep 5; done
+    /etc/init.d/adblock restart
+  changed_when: true
