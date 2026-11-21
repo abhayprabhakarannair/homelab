@@ -35,7 +35,7 @@ Three ISPs, all behind CGNAT, used as ordered failover with mwan3 (decision 16).
 | WAN/LAN2 | `lan3` | Jio AirFiber | 30 Mbit/s, 1000 GB cap, drops in rain; last resort |
 | LAN1, LAN2 | `lan4`, `lan5` | LAN | |
 
-Measured on BSNL through er605 (2026-11-21, decision 19): ~90 Mbit/s down (devil's 100 Mbit/s switch port is the limit), ~60 Mbit/s up, 28 ms to mephisto over a direct tailnet path, 19 ms to Cloudflare; Jio 29 Mbit/s down. The figures in decisions 14 and 15 date from Omada load-balancing over RailWire.
+Measured on BSNL through er605 (2026-11-21, decisions 19 and 21): ~90 Mbit/s down (devil's 100 Mbit/s switch port is the limit), ~90 Mbit/s up, latency +1–4 ms under full load, 28 ms to mephisto over a direct tailnet path, 19 ms to Cloudflare; Jio 29 Mbit/s down. The figures in decisions 14 and 15 date from Omada load-balancing over RailWire.
 
 ## Data flow
 
@@ -79,12 +79,12 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 | mephisto | `site.yml`, roles `firewall` (tailnet zone, https only), `podman`, `mqtt`, `funnel`, `dns`, `console`, `caddy` |
 | devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
 | er605 warden | `site.yml`, role `warden` with `warden_init: procd`: `python3-paho-mqtt`, a `warden` user (UID 200) allowed unprivileged ping through `net.ipv4.ping_group_range`, a procd service with `no_new_privs` |
-| er605 | `site.yml`, role `router`: installs Python and mwan3, templates `/etc/config/{system,network,dhcp,firewall,mwan3,vnstat}`. Files on er605 (router and warden) go through the `mirror` role: read in one `raw` call, rendered on the controller in `$XDG_RUNTIME_DIR`, written back in one, since each Python module costs ~9 s there (a converged `site.yml --check` takes ~50 s, was 8m41s). Changes apply with an automatic rollback: the router restores its previous config unless Ansible reconnects and confirms within 120 s. |
+| er605 | `site.yml`, role `router`: installs Python, mwan3, vnstat, conntrack and sqm-scripts, templates `/etc/config/{system,network,dhcp,firewall,mwan3,vnstat,sqm}`. Files on er605 (router and warden) go through the `mirror` role: read in one `raw` call, rendered on the controller in `$XDG_RUNTIME_DIR`, written back in one, since each Python module costs ~9 s there (a converged `site.yml --check` takes ~50 s, was 8m41s). Changes apply with an automatic rollback: the router restores its previous config unless Ansible reconnects and confirms within 120 s. |
 | eap225 | `site.yml`, role `ap`: templates `/etc/config/{system,network,wireless}`, keeps dnsmasq and odhcpd off. No Python on the device (it needs ~12 MB of the 6 MB free), so tasks are `raw` over SSH or run on the controller. |
 | OpenWrt upgrades | `upgrade.yml` (manual): `owut` builds the release with current packages on the official build server, the device keeps its config and the roles' keep lists; eap225 first. `verify.yml` reports pending updates. [Runbook](runbooks/openwrt.md#d-upgrading). |
 | console | the `console` role builds with the repo's mise Node, copies `dist/` to `/srv/console`, templates `config.js` |
 
-`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, no retained topics left by removed devices, router usage per online WAN with no usage error, OpenWrt keep lists, console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
+`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, no retained topics left by removed devices, router usage per online WAN with no usage error, ISP switching as warden (unreserved addresses refused, stale overrides deleted), cake on shaped WANs, OpenWrt keep lists and pending firmware updates (reported), console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
 
 ## Engineering rules
 
