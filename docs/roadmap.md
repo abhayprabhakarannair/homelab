@@ -2,7 +2,7 @@
 
 ## Status (2026-11-21)
 
-All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; er605 also runs warden 0.3.2 (wake path, ISP status and usage, devices with link and ISP, per-device ISP switching, decisions 17 and 18). The link was re-measured on BSNL (decision 19).
+All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; er605 also runs warden 0.3.3 (wake path, ISP status and usage, devices with link and ISP, per-device ISP switching, decisions 17 and 18). The link was re-measured on BSNL (decision 19).
 
 ## Next
 
