@@ -1,11 +1,13 @@
 #!/bin/sh
 # Rebuilds the per-device ISP override rules from /tmp/wanpref/<ip> (contents: an ISP name).
-# An override applies only while its ISP is tracked online; one whose address is no longer a DHCP reservation is
-# deleted, since the next device leasing that address would inherit it.
+# An override applies only while its ISP is tracked online and not listed in /tmp/wanpref-degraded (written by
+# `wanpref degraded`); one whose address is no longer a DHCP reservation is deleted, since the next device leasing
+# that address would inherit it. A device whose route changed loses its tracked connections, so it moves at once.
 # `wanpref-sync reserved <ip>` only tells whether ip is a reservation.
 # mwan3 deletes rules in its 1000-3999 range when it stops, so this runs on every mwan3 interface event.
 
 PRIORITY=1500
+APPLIED=/tmp/wanpref-applied
 
 reserved() {
 	uci -q show dhcp | grep "^dhcp\.@host\[[0-9]*\]\.ip=" | cut -d= -f2 | grep -qxF "'$1'"
@@ -32,6 +34,7 @@ fi
 
 while ip rule del priority "$PRIORITY" 2>/dev/null; do :; done
 
+applied=""
 for file in /tmp/wanpref/*; do
 	[ -f "$file" ] || continue
 	isp=$(cat "$file")
@@ -40,5 +43,16 @@ for file in /tmp/wanpref/*; do
 	ip=${file##*/}
 	reserved "$ip" || { rm -f "$file"; continue; }
 	[ "$(cat "/var/run/mwan3track/wan_$isp/STATUS" 2>/dev/null)" = online ] || continue
+	grep -qxF "$isp" /tmp/wanpref-degraded 2>/dev/null && continue
 	ip rule add from "$ip" lookup "$id" priority "$PRIORITY"
+	applied="$applied$ip $isp
+"
+done
+
+# Devices that gained, lost or changed an applied override.
+before=$(cat "$APPLIED" 2>/dev/null)
+printf %s "$applied" > "$APPLIED"
+printf '%s\n%s\n' "$before" "$applied" | grep . | sort | uniq -u | cut -d' ' -f1 | sort -u | while read -r ip; do
+	conntrack -D -s "$ip" >/dev/null 2>&1
+	conntrack -D -d "$ip" >/dev/null 2>&1
 done

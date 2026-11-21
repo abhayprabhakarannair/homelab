@@ -15,6 +15,11 @@ config interface 'wan_{{ wan.name }}'
 	option interval '{{ wan.interval }}'
 	option down '3'
 	option up '5'
+	# Quality mode only to record each round's latency for warden (LATENCY_<ip>); with one ping per round and
+	# both latency limits at the 1 s timeout, a reply is still up and a timeout still down.
+	option check_quality '1'
+	option failure_latency '1000'
+	option recovery_latency '1000'
 {% if loop.first %}
 	list flush_conntrack 'disconnected'
 {% endif %}
