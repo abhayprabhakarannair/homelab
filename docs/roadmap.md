@@ -8,7 +8,7 @@ All four repos are on `main` with CI green; `verify.yml` passes on every host an
 
 1. Retire old-devil and the Omada controller (the last step of decision 16).
 2. imp: a wake sent to a machine that is already up reports `up` after ~1 s; port warden's fix (record whether the target was online when the wake was sent).
-3. Replace the 10/100 switch behind er605 with a TL-SG1008P (gigabit, 802.3af/at PoE on ports 1–4, so eap225 can drop its injector); devil's port is capped at 100 Mbit/s until then.
+3. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
 4. Decide decision 15 with decision 19's numbers.
 
 ## Then: API service (decision 15, if adopted)
