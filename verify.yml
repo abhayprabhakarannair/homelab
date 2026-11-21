@@ -345,6 +345,21 @@
       register: wanpref
       changed_when: false
 
+    # sqm follows the interface, not mwan3 tracking: a WAN whose link is down has no shaper, and is reported below.
+    - name: Every shaped WAN that is up has cake both ways
+      ansible.builtin.shell: |
+        set -o pipefail
+        {% for wan in wans if wan.sqm is defined %}
+        if [ "$(ifstatus wan_{{ wan.name }} | jsonfilter -e '@.up')" = true ]; then
+          tc qdisc show dev {{ wan.device }} | grep -q '^qdisc cake ' || echo {{ wan.device }}
+          tc qdisc show dev ifb4{{ wan.device }} | grep -q '^qdisc cake ' || echo ifb4{{ wan.device }}
+        fi
+        {% endfor %}
+      register: sqm
+      changed_when: false
+      failed_when: sqm.rc != 0 or sqm.stdout | trim | length > 0
+      when: wans | selectattr('sqm', 'defined') | list | length > 0
+
     - name: No IPv6 router advertisements
       ansible.builtin.command: pgrep odhcpd
       register: odhcpd
