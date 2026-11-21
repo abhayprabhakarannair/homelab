@@ -112,6 +112,19 @@
         or (wardens.stdout_lines | reject('eq', 'online') | first | from_json).kind != 'warden'
       no_log: true
 
+    - name: Every router reports usage for each online WAN
+      ansible.builtin.command: "{{ sub }} {{ console }} -t {{ topic_root }}/{{ item }}/state"
+      loop: "{{ groups['routers'] }}"
+      register: router_state
+      changed_when: false
+      failed_when: >-
+        router_state.rc != 0
+        or links | map(attribute='name') | list != hostvars[item].wans | map(attribute='name') | list
+        or links | selectattr('status', 'eq', 'online') | rejectattr('used_bytes', 'defined') | list != []
+      vars:
+        links: "{{ (router_state.stdout | from_json).wan.links }}"
+      no_log: true
+
     - name: Console page is served over HTTPS
       ansible.builtin.uri:
         url: "https://console.{{ inventory_hostname }}.{{ domain }}/"
