@@ -18,7 +18,7 @@ imp, warden and console are generic: they read deployment values from config (`s
 | Host | What |
 |---|---|
 | mephisto | Oracle Cloud A1.Flex, ap-hyderabad-1, AlmaLinux 10 aarch64, 2 vCPU / 12 GB / 200 GB. Ephemeral public IP; tailnet `100.101.245.84`, `mephisto.tail6aa22b.ts.net`. Hosts the bus and web apps. |
-| devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. |
+| devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. Its only uplink is the cable to er605: joining an ISP router's Wi-Fi as well gives it an IPv6 route that bypasses failover and ISP switching (2026-11-21). |
 | imp | ESP32-S3-WROOM-1 N16R8 dev kit, `imp.local` (192.168.0.6), 2.4 GHz Wi-Fi. |
 | er605 | TP-Link ER605 v2.20, the home router. OpenWrt 25.12.6 ([runbook](runbooks/openwrt.md)), `192.168.0.1`. Runs warden (`system`, `wake`, `wan`, `clients`): a wired, always-on wake path next to imp, ISP status and usage, and every LAN device with its link (from eap225's read-only API login) and ISP, with per-device ISP switching. Stock flash backup on devil (`~/er605-backup`), old-devil and mephisto. |
 | eap225 | TP-Link EAP225(US) v4.0, the only access point. OpenWrt 25.12.6, `192.168.0.2` (DHCP reservation), bridged to the LAN; one SSID on both bands. |
@@ -37,7 +37,7 @@ Three ISPs, all behind CGNAT, used as ordered failover with mwan3 (decision 16).
 | WAN/LAN2 | `lan3` | Jio AirFiber | 30 Mbit/s, 1000 GB cap, drops in rain; last resort |
 | LAN1, LAN2 | `lan4`, `lan5` | LAN | |
 
-The figures in decisions 14 and 15 (~1.7 Mbit/s, 150 ms to mephisto, 52 ms to Cloudflare) were measured while Omada load-balanced BSNL and RailWire; re-measure on BSNL after the migration.
+Measured on BSNL through er605 (2026-11-21, decision 19): ~90 Mbit/s down (devil's 100 Mbit/s switch port is the limit), ~60 Mbit/s up, 28 ms to mephisto over a direct tailnet path, 19 ms to Cloudflare; Jio 29 Mbit/s down. The figures in decisions 14 and 15 date from Omada load-balancing over RailWire.
 
 ## Data flow
 
