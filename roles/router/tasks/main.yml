@@ -108,8 +108,8 @@
 - name: Service state
   ansible.builtin.raw: |
     check={{ ansible_check_mode | int }}
-    # enabled: started by hotplug and reload triggers rather than kept running (sqm has no procd instance, adblock's
-    # exits once the blocklist is loaded).
+    # enabled: started by hotplug, reload and interface triggers rather than kept running (sqm has no procd
+    # instance; the adblock instance exits once the blocklist is loaded).
     want() {
       if [ "$2" != off ]; then
         /etc/init.d/$1 enabled || { echo "$1 enable"; [ "$check" = 1 ] || /etc/init.d/$1 enable; }
