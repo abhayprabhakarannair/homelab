@@ -37,6 +37,8 @@ Three ISPs, all behind CGNAT, used as ordered failover with mwan3 (decision 16).
 
 Measured on BSNL through er605 (2026-11-21, decisions 19 and 21): ~90 Mbit/s down (devil's 100 Mbit/s switch port is the limit), ~90 Mbit/s up, latency +1–4 ms under full load, 28 ms to mephisto over a direct tailnet path, 19 ms to Cloudflare; Jio 29 Mbit/s down. The figures in decisions 14 and 15 date from Omada load-balancing over RailWire.
 
+RailWire's loss is in its access network (measured 2026-11-21, 21:50, line idle): from er605 through `lan2`, 0 % loss to its ONT (Syrotech GPON, `192.168.51.1`, optical readings on the GPON Info page), 6 % to its CGNAT gateway `100.85.128.1`, 5 % to the next hop (Airtel, its transit) and 4–10 % to 1.1.1.1 and 8.8.8.8; the port shows no CRC or frame errors. The ONT reads Rx −25.7 dBm (weak but in spec), 0 HEC errors and 0 drops, so the downstream fibre delivers clean frames: the loss is upstream on the fibre (visible only on RailWire's OLT) or congestion past it. To report to RailWire with those figures; `ping -I lan2` from er605 to the ONT, `100.85.128.1` and 1.1.1.1 side by side repeats the test.
+
 ## Data flow
 
 ```
