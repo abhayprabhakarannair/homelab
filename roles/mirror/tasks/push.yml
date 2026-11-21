@@ -26,12 +26,12 @@
   check_mode: false
   no_log: true
 
-# One shell argument is capped at 128 KiB.
+# Dropbear (er605) drops the session on commands over 9000 bytes.
 - name: Send changed files
   ansible.builtin.raw: >-
-    umask 077 && printf %s {{ mirror_payload.stdout[item : item + 65536] }}
+    umask 077 && printf %s {{ mirror_payload.stdout[item : item + 8000] }}
     {{ '>' if item == 0 else '>>' }} /tmp/mirror.b64
-  loop: "{{ range(0, mirror_payload.stdout | length, 65536) | list }}"
+  loop: "{{ range(0, mirror_payload.stdout | length, 8000) | list }}"
   changed_when: false
   no_log: true
 

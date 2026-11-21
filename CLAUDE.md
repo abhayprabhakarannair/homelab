@@ -30,5 +30,6 @@ Hub of a three-repo system (homelab, warden, console, all in `~/Projects`; imp i
 - Copying a directory with `ansible.builtin.copy` to er605 hangs before connecting; single files work, so deploy trees as one archive.
 - rpcd runs exec plugins with umask 077: anything a plugin writes for an unprivileged reader needs an explicit umask/chmod.
 - Dropbear kills an SSH session's background jobs on logout, `nohup` included: detach with `async`/`poll: 0`.
+- Dropbear on er605 drops the session when a command exceeds 9000 bytes; the mirror role sends files in 8000-byte chunks.
 - Stock TP-Link SSH (dropbear 2018) drops OpenSSH 10's long host-key list: use `-o HostKeyAlgorithms=ssh-rsa` (no `+`).
 - `-v` prints each loop result's `item` whatever the `label`: never loop over a registered `no_log` result, index into it from a non-secret list.
