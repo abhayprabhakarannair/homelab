@@ -21,8 +21,8 @@ wan_preferences:
   jio-stb: jio
 # DNS ad blocking for the LAN. Exempt devices (dhcp_hosts names) get unfiltered DNS: the Jio box's apps call Jio
 # ad and analytics domains the list blocks. Allowlisted domains are never blocked.
-adblock_exempt: [jio-stb]
-adblock_allowlist: []
+router_adblock_exempt: [jio-stb]
+router_adblock_allowlist: []
 
 warden_init: procd
 warden_uid: 200

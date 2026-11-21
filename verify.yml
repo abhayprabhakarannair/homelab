@@ -310,13 +310,13 @@
       register: adblock_exempt_set
       changed_when: false
       no_log: true
-      when: adblock_exempt | length > 0
+      when: router_adblock_exempt | length > 0
 
     - name: Every exempt device bypasses ad blocking
       ansible.builtin.assert:
         that: dhcp_hosts[item].mac | lower in adblock_exempt_set.stdout
         quiet: true
-      loop: "{{ adblock_exempt }}"
+      loop: "{{ router_adblock_exempt }}"
       no_log: true
 
     - name: Read DHCP config
