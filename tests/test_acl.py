@@ -70,13 +70,13 @@ def rules():
 @pytest.mark.parametrize(
     ("filt", "topic", "expected"),
     [
-        ("home/imp/cmd", "home/imp/cmd", True),
+        ("home/er605/cmd", "home/er605/cmd", True),
         ("home/+/cmd", "home/devil/cmd", True),
         ("home/+/cmd", "home/devil/cmd/x", False),
         ("home/#", "home/devil/state", True),
         ("home/#", "home", True),
-        ("home/imp/cmd", "home/imp", False),
-        ("home/imp", "home/imp/cmd", False),
+        ("home/er605/cmd", "home/er605", False),
+        ("home/er605", "home/er605/cmd", False),
     ],
 )
 def test_matches(filt, topic, expected):
