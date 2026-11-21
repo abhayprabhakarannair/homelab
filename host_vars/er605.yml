@@ -12,7 +12,9 @@ dns_servers: [1.1.1.1, 8.8.8.8]
 track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
 # Names whose public records point at tailnet addresses; dnsmasq's rebind protection drops them otherwise.
 rebind_domains: ["mephisto.{{ domain }}"]
-dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts) }}"
+# A reservation with no device, outside the DHCP pool: verify.yml switches its ISP to test the switch end to end.
+wanpref_probe: {mac: "02:00:00:00:00:fe", ip: 192.168.0.254}
+dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts, {'wanpref-probe': wanpref_probe}) }}"
 # Devices whose traffic prefers another ISP; the rest of `wans` stays as fallback in order. Keys are dhcp_hosts names.
 wan_preferences:
   jio-stb: jio

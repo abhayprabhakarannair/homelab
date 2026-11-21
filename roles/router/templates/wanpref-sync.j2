@@ -1,9 +1,19 @@
 #!/bin/sh
 # Rebuilds the per-device ISP override rules from /tmp/wanpref/<ip> (contents: an ISP name).
-# An override applies only while its ISP is tracked online; otherwise the device uses its normal policy.
+# An override applies only while its ISP is tracked online and its address is a DHCP reservation; otherwise the
+# device uses its normal policy. `wanpref-sync reserved <ip>` only tells whether ip is a reservation.
 # mwan3 deletes rules in its 1000-3999 range when it stops, so this runs on every mwan3 interface event.
 
 PRIORITY=1500
+
+reserved() {
+	uci -q show dhcp | grep "^dhcp\.@host\[[0-9]*\]\.ip=" | cut -d= -f2 | grep -qxF "'$1'"
+}
+
+if [ "$1" = reserved ]; then
+	reserved "$2"
+	exit
+fi
 
 table() {
 	case "$1" in
@@ -26,6 +36,8 @@ for file in /tmp/wanpref/*; do
 	isp=$(cat "$file")
 	id=$(table "$isp")
 	[ -n "$id" ] || continue
+	ip=${file##*/}
+	reserved "$ip" || continue
 	[ "$(cat "/var/run/mwan3track/wan_$isp/STATUS" 2>/dev/null)" = online ] || continue
-	ip rule add from "${file##*/}" lookup "$id" priority "$PRIORITY"
+	ip rule add from "$ip" lookup "$id" priority "$PRIORITY"
 done
