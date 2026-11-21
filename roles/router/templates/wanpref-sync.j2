@@ -56,3 +56,5 @@ printf '%s\n%s\n' "$before" "$applied" | grep . | sort | uniq -u | cut -d' ' -f1
 	conntrack -D -s "$ip" >/dev/null 2>&1
 	conntrack -D -d "$ip" >/dev/null 2>&1
 done
+# conntrack exits 1 when a device had no connections to drop.
+exit 0
