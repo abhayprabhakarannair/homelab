@@ -1,8 +1,11 @@
 #!/bin/sh
-# rpcd exec plugin, run as root: `ubus call wanpref set '{"ip":"…","isp":"<isp>|auto"}'`.
-# Only the warden user may call it (/usr/share/acl.d/warden.json). Routes one LAN device through one ISP,
-# then drops that device's tracked connections so it moves at once. Only DHCP reservations can be routed (an
-# override follows the address, which another device could lease next); auto is allowed for any LAN address.
+# rpcd exec plugin, run as root. Only the warden user may call it (/usr/share/acl.d/warden.json).
+# `ubus call wanpref set '{"ip":"…","isp":"<isp>|auto"}'` routes one LAN device through one ISP. Only DHCP
+# reservations can be routed (an override follows the address, which another device could lease next); auto is
+# allowed for any LAN address.
+# `ubus call wanpref degraded '{"isps":[…]}'` records the ISPs warden measures as degraded (lossy or slow while
+# tracked online); overrides to them are suspended until they recover. A wrong list can only send devices back
+# to their automatic order.
 
 . /usr/share/libubox/jshn.sh
 
@@ -18,12 +21,37 @@ fail() {
 
 case "$1" in
 list)
-	echo '{ "set": { "ip": "str", "isp": "str" } }'
+	echo '{ "set": { "ip": "str", "isp": "str" }, "degraded": { "isps": "array" } }'
 	;;
 call)
-	[ "$2" = set ] || fail "unknown method"
 	read -r input
 	json_load "$input" || fail "invalid JSON"
+	if [ "$2" = degraded ]; then
+		json_select isps || fail "isps must be a list"
+		json_get_keys keys
+		list=""
+		for key in $keys; do
+			json_get_var isp "$key"
+			case "$isp" in
+{% for wan in wans %}
+			{{ wan.name }}) ;;
+{% endfor %}
+			*) fail "unknown isp" ;;
+			esac
+			list="$list$isp
+"
+		done
+		json_select ..
+		printf %s "$list" > /tmp/wanpref-degraded
+		/usr/libexec/wanpref-sync
+		json_init
+		json_add_array isps
+		for isp in $list; do json_add_string "" "$isp"; done
+		json_close_array
+		json_dump
+		exit 0
+	fi
+	[ "$2" = set ] || fail "unknown method"
 	json_get_var ip ip
 	json_get_var isp isp
 	prefix="{{ (lan_address | split('.'))[:3] | join('.') }}."
@@ -41,8 +69,6 @@ call)
 	*) fail "unknown isp" ;;
 	esac
 	/usr/libexec/wanpref-sync
-	conntrack -D -s "$ip" >/dev/null 2>&1
-	conntrack -D -d "$ip" >/dev/null 2>&1
 	json_init
 	json_add_string ip "$ip"
 	json_add_string isp "$isp"

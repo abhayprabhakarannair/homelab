@@ -453,6 +453,49 @@
       register: wanpref
       changed_when: false
 
+    # As warden: an override to an ISP reported degraded is suspended and returns when it recovers. The router's
+    # real list is restored afterwards (warden also resends it every minute).
+    - name: Overrides to a degraded ISP are suspended until it recovers
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import json, os, subprocess
+            os.setgid({{ warden_uid }})
+            os.setuid({{ warden_uid }})
+            def call(method, args):
+                out = subprocess.run(["ubus", "call", "wanpref", method, json.dumps(args)],
+                                     capture_output=True, text=True, check=True).stdout
+                return json.loads(out)
+            def routed(ip):
+                rules = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, check=True).stdout
+                return f"from {ip} lookup" in rules
+            def online(name):
+                try:
+                    return open(f"/var/run/mwan3track/wan_{name}/STATUS").read().strip() == "online"
+                except FileNotFoundError:
+                    return False
+            isp = next(name for name in {{ wans | map(attribute='name') | list | to_json }} if online(name))
+            probe = "{{ wanpref_probe.ip }}"
+            try:
+                before = open("/tmp/wanpref-degraded").read().split()
+            except FileNotFoundError:
+                before = []
+            assert call("degraded", {"isps": ["nosuchisp"]}) == {"error": "unknown isp"}
+            try:
+                call("degraded", {"isps": [i for i in before if i != isp]})
+                assert call("set", {"ip": probe, "isp": isp}) == {"ip": probe, "isp": isp}
+                assert routed(probe), "override not applied"
+                assert call("degraded", {"isps": [isp]}) == {"isps": [isp]}
+                assert not routed(probe), "override kept while degraded"
+                call("degraded", {"isps": []})
+                assert routed(probe), "override not restored after recovery"
+            finally:
+                call("set", {"ip": probe, "isp": "auto"})
+                call("degraded", {"isps": before})
+      changed_when: false
+
     - name: The ISP sync deletes overrides for unreserved addresses and keeps reserved ones
       ansible.builtin.shell: |
         set -e
