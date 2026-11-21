@@ -9,6 +9,9 @@
       work: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/homelab/{{ inventory_hostname }}/work"
       entries: "{{ mirror_entries }}"
       files: "{{ mirror_entries | rejectattr('dir', 'defined') | map(attribute='path') | list }}"
+      parents: >-
+        {{ mirror_entries | selectattr('dir', 'defined') | map(attribute='path')
+           + mirror_entries | rejectattr('dir', 'defined') | map(attribute='path') | map('dirname') | unique }}
 
 - name: Read managed files
   ansible.builtin.raw: |
@@ -33,6 +36,8 @@
     if [ -s pulled ]; then base64 -d pulled | tar -x --no-same-owner -C base; fi
     rm pulled
     cp -a base work
+    # A fresh host lacks some directories, and rendering into work/ needs every entry parent.
+    mkdir -p {{ mirror_copy.parents | map('regex_replace', '^', 'work') | map('quote') | join(' ') }}
   args:
     executable: /bin/bash
     stdin: "{{ mirror_pulled.stdout }}"
