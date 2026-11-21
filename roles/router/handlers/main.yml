@@ -2,14 +2,14 @@
   ansible.builtin.include_tasks: apply.yml
 
 - name: Restart vnstat
-  ansible.builtin.command: /etc/init.d/vnstat restart
+  ansible.builtin.raw: /etc/init.d/vnstat restart
   changed_when: true
 
 # rpcd discovers exec plugins at start; ubusd reads ACL files on SIGHUP.
 - name: Reload ubus services
-  ansible.builtin.shell: /etc/init.d/rpcd restart && kill -HUP "$(pidof ubusd)"
+  ansible.builtin.raw: /etc/init.d/rpcd restart && kill -HUP "$(pidof ubusd)"
   changed_when: true
 
 - name: Sync ISP overrides
-  ansible.builtin.command: /usr/libexec/wanpref-sync
+  ansible.builtin.raw: /usr/libexec/wanpref-sync
   changed_when: true

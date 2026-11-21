@@ -13,6 +13,7 @@
 - name: Workstations
   hosts: workstations
   become: true
+  gather_facts: false
   roles:
     - workstation
 
@@ -31,5 +32,6 @@
 - name: Wardens
   hosts: wardens
   become: true
+  gather_facts: false
   roles:
     - warden

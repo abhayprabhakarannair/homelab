@@ -1,1 +1,15 @@
 router_configs: [system, network, dhcp, firewall, mwan3, vnstat]
+router_scripts:
+  - {src: wanpref-sync.j2, path: /usr/libexec/wanpref-sync, mode: "0755"}
+  - {src: wanpref.j2, path: /usr/libexec/rpcd/wanpref, mode: "0755"}
+  - {src: mwan3.user.j2, path: /etc/mwan3.user, mode: "0755"}
+  - {src: warden-acl.json.j2, path: /usr/share/acl.d/warden.json, mode: "0644"}
+# On OpenWrt /var is RAM: the usage database lives on flash so cycle totals survive reboots. vnstatd does not
+# create its database directory.
+router_files: >-
+  {{ [{'path': '/etc/vnstat', 'mode': '0755', 'dir': true},
+      {'path': '/usr/libexec/rpcd', 'mode': '0755', 'dir': true},
+      {'path': '/etc/vnstat.conf', 'mode': '0644'}]
+     + router_configs | map('regex_replace', '^', '/etc/config/') | map('community.general.dict_kv', 'path')
+       | map('combine', {'mode': '0644'}) | list
+     + router_scripts | map('ansible.utils.remove_keys', target=['src']) | list }}
