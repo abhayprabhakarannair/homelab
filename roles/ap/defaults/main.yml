@@ -4,3 +4,8 @@ ap_files:
   - {path: /etc/config/wireless, template: wireless.j2}
   - {path: /etc/config/rpcd, template: rpcd.j2}
   - {path: /usr/share/rpcd/acl.d/warden.json, template: rpcd-acl.json.j2}
+  # Read by sysupgrade and by owut (upgrade.yml), so an upgrade keeps the files above and the services stay off.
+  - {path: /lib/upgrade/keep.d/homelab-ap, template: upgrade-keep.j2}
+  - {path: /etc/owut.d/homelab-init.sh, template: upgrade-init.j2}
+# er605 is the LAN's only DHCP server.
+ap_services_off: [dnsmasq, odhcpd]

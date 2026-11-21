@@ -1,0 +1,5 @@
+# First boot of an owut-built image (upgrade.yml): services the router role keeps off.
+{% for s in router_services_off %}
+[ -x /etc/init.d/{{ s }} ] && /etc/init.d/{{ s }} disable
+{% endfor %}
+exit 0

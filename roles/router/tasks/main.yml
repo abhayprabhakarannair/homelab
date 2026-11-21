@@ -61,6 +61,16 @@
     - Reload ubus services
     - Sync ISP overrides
 
+- name: Upgrade keep list and first-boot script
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ mirror_copy.work }}{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ router_upgrade_files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  delegate_to: localhost
+
 - name: Snapshot config for rollback
   ansible.builtin.raw: mkdir -p /tmp/config.rollback && cp -a /etc/config/. /tmp/config.rollback/
   changed_when: false
@@ -99,7 +109,9 @@
       fi
       return 0
     }
-    want odhcpd off
+    {% for s in router_services_off %}
+    want {{ s }} off
+    {% endfor %}
     want mwan3 on
     want sqm enabled
   register: router_services

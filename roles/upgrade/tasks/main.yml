@@ -1,0 +1,68 @@
+# Every task is raw or runs on the controller: eap225 has no Python, and the router's goes away while it flashes.
+- name: Upgrade keep list and first-boot script are deployed
+  ansible.builtin.raw: test -s /etc/owut.d/homelab-init.sh && ls /lib/upgrade/keep.d/homelab-*
+  changed_when: false
+  check_mode: false
+
+- name: Check for updates
+  ansible.builtin.raw: owut check {{ upgrade_owut_version }}
+  register: upgrade_check
+  changed_when: "'safe to proceed' in upgrade_check.stdout"
+  failed_when: upgrade_check.rc != 0 or 'downgrades' in upgrade_check.stdout
+  check_mode: false
+
+- name: Nothing to upgrade
+  ansible.builtin.meta: end_host
+  when: upgrade_check is not changed or ansible_check_mode
+
+# Holds /etc/shadow, the Wi-Fi key and warden's password: private to the user, never in the repo.
+- name: Back up the config to the controller
+  ansible.builtin.shell: |
+    set -euo pipefail
+    umask 077
+    mkdir -p {{ upgrade_backup_dir }}
+    file={{ upgrade_backup_dir }}/{{ inventory_hostname }}-$(date +%Y%m%dT%H%M).tar.gz
+    ssh -o BatchMode=yes {{ ansible_user }}@{{ ansible_host }} sysupgrade -b - > "$file"
+    gzip -t "$file"
+    echo "$file"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  changed_when: true
+
+# Builds on the server (a few minutes), downloads to /tmp/firmware.bin, checks its checksum and sysupgrade -T.
+- name: Build and download the image
+  ansible.builtin.raw: owut download {{ upgrade_owut_version }} --init-script /etc/owut.d/homelab-init.sh
+  changed_when: true
+
+# owut hands the image to procd, which flashes and reboots without this session: dropbear is killed, so losing
+# the connection here is the expected outcome.
+- name: Install
+  ansible.builtin.raw: owut install
+  register: upgrade_install
+  failed_when: upgrade_install.rc | default(0) not in [0, 255]
+  ignore_unreachable: true
+  changed_when: true
+
+- name: Wait for the device to go down
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    state: stopped
+    timeout: 300
+  delegate_to: localhost
+
+- name: Wait for it to come back
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    search_regex: SSH
+    delay: 30
+    timeout: 900
+  delegate_to: localhost
+
+- name: Running the new build
+  ansible.builtin.raw: owut check {{ upgrade_owut_version }}
+  register: upgrade_after
+  changed_when: false
+  failed_when: upgrade_after.rc != 0 or 'no changes' not in upgrade_after.stdout
