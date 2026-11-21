@@ -31,3 +31,4 @@ Hub of a four-repo system (homelab, imp, warden, console, all in `~/Projects`). 
 - rpcd runs exec plugins with umask 077: anything a plugin writes for an unprivileged reader needs an explicit umask/chmod.
 - Dropbear kills an SSH session's background jobs on logout, `nohup` included: detach with `async`/`poll: 0`.
 - Stock TP-Link SSH (dropbear 2018) drops OpenSSH 10's long host-key list: use `-o HostKeyAlgorithms=ssh-rsa` (no `+`).
+- `-v` prints each loop result's `item` whatever the `label`: never loop over a registered `no_log` result, index into it from a non-secret list.
