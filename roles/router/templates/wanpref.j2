@@ -5,6 +5,9 @@
 
 . /usr/share/libubox/jshn.sh
 
+# rpcd runs plugins with umask 077; warden reads the overrides unprivileged.
+umask 022
+
 fail() {
 	json_init
 	json_add_string error "$1"
@@ -31,7 +34,7 @@ call)
 	case "$isp" in
 	auto) rm -f "/tmp/wanpref/$ip" ;;
 {% for wan in wans %}
-	{{ wan.name }}) mkdir -p /tmp/wanpref && echo {{ wan.name }} > "/tmp/wanpref/$ip" ;;
+	{{ wan.name }}) mkdir -p /tmp/wanpref && echo {{ wan.name }} > "/tmp/wanpref/$ip" && chmod 644 "/tmp/wanpref/$ip" ;;
 {% endfor %}
 	*) fail "unknown isp" ;;
 	esac

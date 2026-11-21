@@ -85,7 +85,9 @@
     - {src: warden-acl.json.j2, dest: /usr/share/acl.d/warden.json, mode: "0644"}
   loop_control:
     label: "{{ item.dest }}"
-  notify: Reload ubus services
+  notify:
+    - Reload ubus services
+    - Sync ISP overrides
 
 - name: Service state
   community.general.openwrt_init:

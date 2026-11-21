@@ -13,6 +13,12 @@ table() {
 	esac
 }
 
+# warden reads the overrides unprivileged; older helpers created them root-only.
+if [ -d /tmp/wanpref ]; then
+	chmod 755 /tmp/wanpref
+	chmod 644 /tmp/wanpref/* 2>/dev/null
+fi
+
 while ip rule del priority "$PRIORITY" 2>/dev/null; do :; done
 
 for file in /tmp/wanpref/*; do
