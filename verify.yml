@@ -290,7 +290,7 @@
       ansible.builtin.assert:
         that:
           - adblock.stdout_lines[0] == 'enabled'
-          - adblock.stdout_lines[1] | int > 50000
+          - adblock.stdout_lines[1] | replace(' ', '') | int > 50000  # printed with digit groups: 244 975
         quiet: true
 
     - name: A LAN client gets ad domains refused and other names resolved
