@@ -2,7 +2,7 @@
 
 ## Status (2026-11-21)
 
-All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; er605 also runs warden 0.3.4 (wake path, ISP status and usage, devices with link and ISP, ISP switching for reserved devices, decisions 17 and 18). The link was re-measured on BSNL (decision 19); it shows no bufferbloat, so no WAN is shaped (decision 21). Both devices were upgraded with `upgrade.yml` (decision 22) to 25.12.6 with current packages. er605 blocks ads and trackers for the LAN through dnsmasq, the Jio set-top box included on trial (decision 23). Its upstream DNS goes over HTTPS (decision 24).
+All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; er605 also runs warden 0.3.4 (wake path, ISP status and usage, devices with link and ISP, ISP switching for reserved devices, decisions 17 and 18). The link was re-measured on BSNL (decision 19); it shows no bufferbloat, so no WAN is shaped (decision 21). Both devices were upgraded with `upgrade.yml` (decision 22) to 25.12.6 with current packages. er605 blocks ads and trackers for the LAN through dnsmasq, the Jio set-top box included on trial (decision 23). Its upstream DNS goes over HTTPS (decision 24). devil is protected by its UPS through NUT, which powers it off at 30 % and brings it back when mains returns (decision 25).
 
 ## Next
 
@@ -20,7 +20,6 @@ All three repos are on `main` with CI green; `verify.yml` passes on every host a
 ## Backlog
 
 - Backups: restic to the Hetzner storage box.
-- UPS: NUT on devil, then a warden `ups` module.
 - A power-button device (imp hardware, optocoupler) if ever needed.
 - SSO for tailnet apps (tsidp).
 - More apps on mephisto as roles: Nextcloud, Paperless, IT-Tools, Plane.

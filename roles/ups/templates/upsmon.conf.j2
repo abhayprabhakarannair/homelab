@@ -1,0 +1,7 @@
+RUN_AS_USER nut
+MONITOR {{ ups.name }}@localhost 1 upsmon {{ secrets.nut.upsmon_password }} primary
+MINSUPPLIES 1
+SHUTDOWNCMD "/usr/bin/systemctl poweroff"
+# Makes NUT's systemd-shutdown hook tell the UPS to cut its output and restore it when mains returns.
+POWERDOWNFLAG /etc/killpower
+FINALDELAY 5

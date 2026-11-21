@@ -1,0 +1,10 @@
+[{{ ups.name }}]
+  driver = usbhid-ups
+  port = auto
+  vendorid = {{ ups.vendorid }}
+  productid = {{ ups.productid }}
+  desc = "{{ ups.desc }}"
+  # Shut down with margin for an ageing battery instead of at the UPS's own low-battery signal.
+  ignorelb
+  override.battery.charge.low = {{ ups.low_charge_pct }}
+  override.battery.runtime.low = {{ ups.low_runtime_s }}

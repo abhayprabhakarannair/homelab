@@ -7,4 +7,14 @@ ufw_rules:
 
 ufw_superseded_apps: [SSH, KDE Connect]
 
-warden_modules: [power, system, sensors]
+warden_modules: [power, system, sensors, ups]
+warden_ups: "{{ ups.name }}@localhost"
+warden_disks: [/, /mnt/data]
+
+ups:
+  name: apc
+  desc: APC Back-UPS RS 1500G-IN
+  vendorid: "051d"
+  productid: "0002"
+  low_charge_pct: 30
+  low_runtime_s: 300
