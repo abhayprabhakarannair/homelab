@@ -280,6 +280,22 @@
         - ping -c1 -W2 1.1.1.1
       changed_when: false
 
+    # dnsmasq forwards only to the local DoH proxies, so a LAN client's answers (below) came over HTTPS.
+    - name: Read DNS upstreams and listeners
+      ansible.builtin.shell: uci get dhcp.@dnsmasq[0].server && netstat -lnu
+      register: doh
+      changed_when: false
+
+    - name: DNS leaves only through a running DoH proxy for each resolver
+      ansible.builtin.assert:
+        that:
+          - upstreams == ports | map('regex_replace', '^', '127.0.0.1#') | sort
+          - ports | map('regex_replace', '^', '127.0.0.1:') | reject('in', doh.stdout) | list == []
+        quiet: true
+      vars:
+        ports: "{{ doh_resolvers | map(attribute='port') | map('string') | list }}"
+        upstreams: "{{ doh.stdout_lines[0] | split | reject('match', '/') | sort }}"
+
     - name: Read ad blocking state
       ansible.builtin.command: >-
         jsonfilter -i /var/run/adblock/adblock.runtime.json -e @.adblock_status -e @.blocked_domains

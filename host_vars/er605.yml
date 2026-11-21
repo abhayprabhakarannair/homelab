@@ -9,7 +9,13 @@ lan_macaddr: "98:03:8e:71:9d:b9"
 lan_address: 192.168.0.1/24
 # Jio's billing cycle restarts on the 21st; usage counters roll over then.
 router_cycle_day: 21
-dns_servers: [1.1.1.1, 8.8.8.8]
+# Upstream DNS, over HTTPS so the ISPs neither see nor rewrite lookups. Each resolver gets a local
+# https-dns-proxy instance on its port; bootstrap addresses resolve the resolver's own name at start.
+doh_resolvers:
+  - {url: "https://cloudflare-dns.com/dns-query", bootstrap: [1.1.1.1, 1.0.0.1], port: 5053}
+  - {url: "https://dns.google/dns-query", bootstrap: [8.8.8.8, 8.8.4.4], port: 5054}
+# Plain DNS for adblock: the bridge while dnsmasq restarts and the exempt devices.
+dns_servers: [1.1.1.1]
 track_ips: [1.1.1.1, 8.8.8.8, 9.9.9.9]
 # Names whose public records point at tailnet addresses; dnsmasq's rebind protection drops them otherwise.
 rebind_domains: ["mephisto.{{ domain }}"]

@@ -1,0 +1,16 @@
+
+config main 'config'
+	option dnsmasq_config_update '-'
+	option force_dns '0'
+	option force_ip_family 'ipv4'
+	option heartbeat_domain '-'
+	option listen_addr '127.0.0.1'
+	option user 'nobody'
+	option group 'nogroup'
+{% for resolver in doh_resolvers %}
+
+config https-dns-proxy
+	option resolver_url '{{ resolver.url }}'
+	option bootstrap_dns '{{ resolver.bootstrap | join(',') }}'
+	option listen_port '{{ resolver.port }}'
+{% endfor %}
