@@ -33,3 +33,6 @@ Hub of a three-repo system (homelab, warden, console, all in `~/Projects`; imp i
 - Dropbear on er605 drops the session when a command exceeds 9000 bytes; the mirror role sends files in 8000-byte chunks.
 - Stock TP-Link SSH (dropbear 2018) drops OpenSSH 10's long host-key list: use `-o HostKeyAlgorithms=ssh-rsa` (no `+`).
 - `-v` prints each loop result's `item` whatever the `label`: never loop over a registered `no_log` result, index into it from a non-secret list.
+- er605 has no curl: `mwan3 use wan_<isp> uclient-fetch -q -O - https://ipinfo.io/org` shows the ISP behind each WAN.
+- Backslash escapes in Jinja strings inside folded YAML (`>-`) broke rendering in `verify.yml`; use a character class (`[(]`).
+- Force pushes are denied, so bring a PR branch up to date by merging `main` into it, not rebasing.
