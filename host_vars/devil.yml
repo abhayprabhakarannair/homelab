@@ -4,7 +4,6 @@ ufw_rules:
   - {port: "22", proto: tcp, comment: SSH}
   - {port: "1714:1764", proto: tcp, from_ip: "{{ lan_cidr }}", comment: KDE Connect}
   - {port: "1714:1764", proto: udp, from_ip: "{{ lan_cidr }}", comment: KDE Connect}
-  - {port: "3233", proto: tcp, from_ip: "{{ lan_cidr }}", comment: imp OTA, state: absent}
 
 ufw_superseded_apps: [SSH, KDE Connect]
 
