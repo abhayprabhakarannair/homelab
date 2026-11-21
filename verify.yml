@@ -419,6 +419,6 @@
       changed_when: pending | length > 0
       vars:
         pending: >-
-          {{ (owut.stdout_lines | map('trim') | select('search', 'out-of-date$') | list)
-             + (owut.stdout_lines | map('trim') | select('search', '\\(installed')
+          {{ (owut.stdout_lines | map('trim') | map('regex_search', '[0-9]+ packages are out-of-date') | select | list)
+             + (owut.stdout_lines | map('trim') | select('search', '[(,]installed[,)]')
                 | reject('search', 'latest') | list) }}
