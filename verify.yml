@@ -276,7 +276,7 @@
       no_log: true
 
     # OpenWrt's busybox has no su: drop to warden's uid in Python.
-    - name: The ISP switch is callable by warden and refuses non-LAN addresses
+    - name: The ISP switch is callable by warden, refuses non-LAN addresses, and its overrides are readable
       ansible.builtin.command:
         argv:
           - python3
@@ -286,7 +286,11 @@
             os.setgid({{ warden_uid }})
             os.setuid({{ warden_uid }})
             request = '{"ip":"198.51.100.1","isp":"auto"}'
-            sys.exit(subprocess.run(["ubus", "call", "wanpref", "set", request]).returncode)
+            code = subprocess.run(["ubus", "call", "wanpref", "set", request]).returncode
+            if os.path.isdir("/tmp/wanpref"):
+                for name in os.listdir("/tmp/wanpref"):
+                    open(os.path.join("/tmp/wanpref", name)).read()
+            sys.exit(code)
       register: wanpref
       changed_when: false
       failed_when: wanpref.rc != 0 or (wanpref.stdout | from_json).error != 'not a LAN address'

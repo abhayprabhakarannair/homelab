@@ -5,6 +5,9 @@
 
 . /usr/share/libubox/jshn.sh
 
+# rpcd runs plugins with umask 077; warden reads the overrides unprivileged.
+umask 022
+
 fail() {
 	json_init
 	json_add_string error "$1"
