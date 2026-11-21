@@ -1,7 +1,7 @@
 # Ordered failover: first entry is primary. MACs are the stock firmware's per-port WAN MACs. `sqm` shapes a link
 # with cake at these rates (kbit/s, ~90 % of measured); a link without it is not shaped.
 wans:
-  - {name: bsnl, device: wan1, macaddr: "98:03:8e:71:9d:ba", interval: 1, sqm: {down: 85000, up: 54000}}
+  - {name: bsnl, device: wan1, macaddr: "98:03:8e:71:9d:ba", interval: 1}
   - {name: railwire, device: lan2, macaddr: "98:03:8e:71:9d:bb", interval: 1}
   - {name: jio, device: lan3, macaddr: "98:03:8e:71:9d:bc", interval: 1, cap_gb: 1000}
 lan_ports: [lan4, lan5]
