@@ -345,6 +345,24 @@
       register: wanpref
       changed_when: false
 
+    - name: The ISP sync deletes overrides for unreserved addresses and keeps reserved ones
+      ansible.builtin.shell: |
+        set -e
+        unreserved=/tmp/wanpref/{{ (lan_address | split('.'))[:3] | join('.') }}.253
+        probe=/tmp/wanpref/{{ wanpref_probe.ip }}
+        mkdir -p /tmp/wanpref
+        echo {{ wans[0].name }} > "$unreserved"
+        echo {{ wans[0].name }} > "$probe"
+        /usr/libexec/wanpref-sync
+        status=0
+        [ ! -e "$unreserved" ] || { echo "kept $unreserved"; status=1; }
+        [ -e "$probe" ] || { echo "deleted $probe"; status=1; }
+        rm -f "$unreserved" "$probe"
+        /usr/libexec/wanpref-sync
+        exit $status
+      register: wanpref_sync
+      changed_when: false
+
     # sqm follows the interface, not mwan3 tracking: a WAN whose link is down has no shaper, and is reported below.
     - name: Every shaped WAN that is up has cake both ways
       ansible.builtin.shell: |
