@@ -14,26 +14,27 @@
     before: "{{ current | regex_replace(key_line, masked) }}"
     after: "{{ wanted | regex_replace(key_line, masked) }}"
   vars:
-    current: "{{ item.stdout_lines | join('\n') | trim }}"
-    wanted: "{{ lookup('template', item.item.template) | trim }}"
-    key_line: "(?m)^(\\s*option (?:key|password) ).*$"
+    current: "{{ ap_current.results[index].stdout_lines | join('\n') | trim }}"
+    wanted: "{{ lookup('template', item.template) | trim }}"
+    key_line: "(?m)^(\\s*option (?:key|password|ssid) ).*$"
     masked: "\\1<secret>"
   changed_when: current != wanted
-  loop: "{{ ap_current.results }}"
+  loop: "{{ ap_files }}"
   loop_control:
-    label: "{{ item.item.path }}"
+    label: "{{ item.path }}"
+    index_var: index
   register: ap_diff
 
 - name: Write config files
   ansible.builtin.raw: |
-    cat > {{ item.item.item.path }} <<'EOF'
-    {{ lookup('template', item.item.item.template) | trim }}
+    cat > {{ item.item.path }} <<'EOF'
+    {{ lookup('template', item.item.template) | trim }}
     EOF
   when: item.changed and not ansible_check_mode
   changed_when: true
   loop: "{{ ap_diff.results }}"
   loop_control:
-    label: "{{ item.item.item.path }}"
+    label: "{{ item.item.path }}"
   no_log: true
   notify: Reload OpenWrt config
 
