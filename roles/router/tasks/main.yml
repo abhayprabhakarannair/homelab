@@ -8,7 +8,8 @@
 
 - name: Install packages
   ansible.builtin.raw: |
-    for p in mwan3:/usr/sbin/mwan3 vnstat2:/usr/sbin/vnstatd conntrack:/usr/sbin/conntrack; do
+    for p in mwan3:/usr/sbin/mwan3 vnstat2:/usr/sbin/vnstatd conntrack:/usr/sbin/conntrack \
+      sqm-scripts:/usr/lib/sqm/run.sh; do
       [ -e "${p#*:}" ] && continue
       echo "${p%%:*}"
       {{ ':' if ansible_check_mode else 'apk add "${p%%:*}" >/dev/null || exit 1' }}
@@ -96,9 +97,11 @@
 - name: Service state
   ansible.builtin.raw: |
     check={{ ansible_check_mode | int }}
+    # enabled: started by hotplug and reload triggers rather than kept running (sqm has no procd instance).
     want() {
-      if [ "$2" = on ]; then
+      if [ "$2" != off ]; then
         /etc/init.d/$1 enabled || { echo "$1 enable"; [ "$check" = 1 ] || /etc/init.d/$1 enable; }
+        [ "$2" = enabled ] && return 0
         /etc/init.d/$1 running || { echo "$1 start"; [ "$check" = 1 ] || /etc/init.d/$1 start; }
       else
         /etc/init.d/$1 enabled && { echo "$1 disable"; [ "$check" = 1 ] || /etc/init.d/$1 disable; }
@@ -110,6 +113,7 @@
     want {{ s }} off
     {% endfor %}
     want mwan3 on
+    want sqm enabled
   register: router_services
   changed_when: router_services.stdout | trim | length > 0
   check_mode: false
