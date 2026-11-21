@@ -83,7 +83,7 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 | eap225 | `site.yml`, role `ap`: templates `/etc/config/{system,network,wireless}`, keeps dnsmasq and odhcpd off. No Python on the device (it needs ~12 MB of the 6 MB free), so tasks are `raw` over SSH or run on the controller. |
 | console | the `console` role builds with the repo's mise Node, copies `dist/` to `/srv/console`, templates `config.js` |
 
-`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, router usage per online WAN, console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
+`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, no retained topics left by removed devices, router usage per online WAN, console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
 
 ## Engineering rules
 

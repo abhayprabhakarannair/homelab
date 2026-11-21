@@ -112,6 +112,26 @@
         or (wardens.stdout_lines | reject('eq', 'online') | first | from_json).kind != 'warden'
       no_log: true
 
+    - name: Read every retained device topic
+      ansible.builtin.command: >-
+        podman exec mqtt mosquitto_sub -h 127.0.0.1 -p {{ mqtt.port }} {{ console }} --retained-only -W 2
+        -t {{ topic_root }}/+/meta -t {{ topic_root }}/+/status -t {{ topic_root }}/+/state -F %t
+      register: retained
+      changed_when: false
+      failed_when: retained.rc not in [0, 27]
+      no_log: true
+
+    # A device removed from mqtt.devices can no longer clear its own retained topics; the console would keep its card.
+    - name: Retained topics belong only to current devices
+      ansible.builtin.assert:
+        that:
+          - retained.stdout_lines != []
+          - unknown == []
+        fail_msg: "Retained topics of removed devices: {{ unknown }}"
+        quiet: true
+      vars:
+        unknown: "{{ retained.stdout_lines | map('split', '/') | map(attribute=1) | unique | difference(mqtt.devices) }}"
+
     - name: Every router reports usage for each online WAN
       ansible.builtin.command: "{{ sub }} {{ console }} -t {{ topic_root }}/{{ item }}/state"
       loop: "{{ groups['routers'] }}"
