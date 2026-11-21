@@ -1,0 +1,43 @@
+# Python modules cost ~9 s each on er605 (a bare python3 under 1 s), so managed files cross the wire in one raw
+# call each way and are rendered on the controller with the usual modules into a copy: base/ as found on the
+# host, work/ as wanted. BusyBox there has no base64; python3 does it.
+# mirror_entries: {path, mode, owner (root), group (root), dir (true for directories, omitted for files)}.
+- name: Where managed files are mirrored
+  ansible.builtin.set_fact:
+    mirror_copy:
+      root: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/homelab/{{ inventory_hostname }}"
+      work: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/homelab/{{ inventory_hostname }}/work"
+      entries: "{{ mirror_entries }}"
+      files: "{{ mirror_entries | rejectattr('dir', 'defined') | map(attribute='path') | list }}"
+
+- name: Read managed files
+  ansible.builtin.raw: |
+    cd /
+    for p in {{ mirror_copy.files | map('quote') | join(' ') }}; do
+      [ -f "$p" ] && echo "${p#/}"
+    done > /tmp/mirror.list
+    [ -s /tmp/mirror.list ] && tar -cf - -T /tmp/mirror.list | python3 -m base64
+    rm /tmp/mirror.list
+  register: mirror_pulled
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Mirror them on the controller
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -rf {{ mirror_copy.root | quote }}
+    mkdir -p -m 0700 {{ mirror_copy.root | quote }}/base
+    cd {{ mirror_copy.root | quote }}
+    tr -d '\r' > pulled
+    if [ -s pulled ]; then base64 -d pulled | tar -x --no-same-owner -C base; fi
+    rm pulled
+    cp -a base work
+  args:
+    executable: /bin/bash
+    stdin: "{{ mirror_pulled.stdout }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  no_log: true

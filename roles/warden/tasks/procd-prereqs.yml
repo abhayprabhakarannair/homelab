@@ -1,17 +1,28 @@
-# OpenWrt has no useradd; procd drops to this user when starting the service.
-- name: Runtime dependency
-  ansible.builtin.command: apk add python3-paho-mqtt
-  args:
-    creates: /usr/lib/python3.13/site-packages/paho/mqtt/client.pyc
-
-- name: Service user
-  ansible.builtin.lineinfile:
-    path: "{{ item.path }}"
-    regexp: "^warden:"
-    line: "{{ item.line }}"
-  loop:
-    - {path: /etc/group, line: "warden:x:{{ warden_uid }}:"}
-    - {path: /etc/passwd, line: "warden:x:{{ warden_uid }}:{{ warden_uid }}:warden:/var/empty:/bin/false"}
-    - {path: /etc/shadow, line: "warden:*:0:0:99999:7:::"}
-  loop_control:
-    label: "{{ item.path }}"
+# OpenWrt has no useradd; procd drops to this user when starting the service. The wake module pings over
+# unprivileged ICMP sockets, allowed only for groups in net.ipv4.ping_group_range.
+- name: Runtime dependency, service user and ping permission
+  ansible.builtin.raw: |
+    check={{ ansible_check_mode | int }}
+    range='{{ warden_uid }} {{ warden_uid }}'
+    ensure() {
+      grep -qxF "$3" "$1" 2>/dev/null && return
+      echo "$1"
+      [ "$check" = 1 ] && return
+      touch "$1" && sed -i "/$2/d" "$1" && echo "$3" >> "$1" || exit 1
+    }
+    if [ ! -e /usr/lib/python3.13/site-packages/paho/mqtt/client.pyc ]; then
+      echo python3-paho-mqtt
+      [ "$check" = 1 ] || apk add python3-paho-mqtt >/dev/null || exit 1
+    fi
+    ensure /etc/group '^warden:' 'warden:x:{{ warden_uid }}:'
+    ensure /etc/passwd '^warden:' 'warden:x:{{ warden_uid }}:{{ warden_uid }}:warden:/var/empty:/bin/false'
+    ensure /etc/shadow '^warden:' 'warden:*:0:0:99999:7:::'
+    ensure /etc/sysctl.d/90-warden.conf '^net\.ipv4\.ping_group_range=' "net.ipv4.ping_group_range=$range"
+    set -- $(sysctl -n net.ipv4.ping_group_range)
+    if [ "$*" != "$range" ]; then
+      echo ping_group_range
+      [ "$check" = 1 ] || sysctl -w "net.ipv4.ping_group_range=$range" >/dev/null || exit 1
+    fi
+  register: warden_prereqs
+  changed_when: warden_prereqs.stdout | trim | length > 0
+  check_mode: false

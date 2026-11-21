@@ -1,4 +1,5 @@
-# Runs even in check mode: every later module needs Python. Reinstalled after each OpenWrt upgrade.
+# Runs even in check mode. Only applying config and handlers use Python modules; the rest is raw
+# (each Python module costs ~9 s here). Reinstalled after each OpenWrt upgrade.
 - name: Install Python
   ansible.builtin.raw: command -v python3 >/dev/null || { apk update && apk add python3; }
   register: router_python
@@ -6,57 +7,35 @@
   check_mode: false
 
 - name: Install packages
-  ansible.builtin.command: apk add {{ item.name }}
-  args:
-    creates: "{{ item.creates }}"
-  loop:
-    - {name: mwan3, creates: /usr/sbin/mwan3}
-    - {name: vnstat2, creates: /usr/sbin/vnstatd}
-    - {name: conntrack, creates: /usr/sbin/conntrack}
-  loop_control:
-    label: "{{ item.name }}"
+  ansible.builtin.raw: |
+    for p in mwan3:/usr/sbin/mwan3 vnstat2:/usr/sbin/vnstatd conntrack:/usr/sbin/conntrack; do
+      [ -e "${p#*:}" ] && continue
+      echo "${p%%:*}"
+      {{ ':' if ansible_check_mode else 'apk add "${p%%:*}" >/dev/null || exit 1' }}
+    done
   register: router_packages
+  changed_when: router_packages.stdout | trim | length > 0
+  check_mode: false
 
-- name: Snapshot config for rollback
-  ansible.builtin.command: cp -a /etc/config/. /tmp/config.rollback/
-  changed_when: false
-  when: not ansible_check_mode
+- name: Read managed files
+  ansible.builtin.include_role:
+    name: mirror
+    tasks_from: pull
+  vars:
+    mirror_entries: "{{ router_files }}"
 
 - name: Write config
   ansible.builtin.template:
     src: "{{ item }}.j2"
-    dest: /etc/config/{{ item }}
+    dest: "{{ mirror_copy.work }}/etc/config/{{ item }}"
     mode: "0644"
   loop: "{{ router_configs }}"
+  delegate_to: localhost
   notify: Apply router config
-
-# Converges after a run that failed between writing and applying: reload_config records the applied state of each
-# config in /var/run/config.md5, so anything that differs from it is still waiting to be applied.
-- name: Find config written but not applied
-  ansible.builtin.shell: |
-    set -o pipefail
-    for f in {{ router_configs | join(' ') }}; do
-      applied=$(grep " /var/run/config.check/$f$" /var/run/config.md5 | cut -d' ' -f1)
-      current=$(uci show "$f" 2>/dev/null | md5sum | cut -d' ' -f1)
-      [ "$applied" = "$current" ] || echo "$f"
-    done
-  register: router_pending
-  changed_when: router_pending.stdout | length > 0
-  check_mode: false
-  notify: Apply router config
-
-# On OpenWrt /var is RAM: keep the usage database on flash so cycle totals survive reboots.
-# vnstatd does not create its database directory.
-- name: Usage database directory
-  ansible.builtin.file:
-    path: /etc/vnstat
-    state: directory
-    mode: "0755"
-  notify: Restart vnstat
 
 - name: Usage counter settings
   ansible.builtin.lineinfile:
-    path: /etc/vnstat.conf
+    path: "{{ mirror_copy.work }}/etc/vnstat.conf"
     regexp: "^;?{{ item.key }} "
     line: "{{ item.key }} {{ item.value }}"
   loop:
@@ -64,37 +43,62 @@
     - {key: MonthRotate, value: "{{ router_cycle_day }}"}
   loop_control:
     label: "{{ item.key }}"
+  delegate_to: localhost
   when: not (ansible_check_mode and router_packages is changed)
   notify: Restart vnstat
-
-- name: Plugin directory for rpcd
-  ansible.builtin.file:
-    path: /usr/libexec/rpcd
-    state: directory
-    mode: "0755"
 
 - name: ISP override helper
   ansible.builtin.template:
     src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
+    dest: "{{ mirror_copy.work }}{{ item.path }}"
     mode: "{{ item.mode }}"
-  loop:
-    - {src: wanpref-sync.j2, dest: /usr/libexec/wanpref-sync, mode: "0755"}
-    - {src: wanpref.j2, dest: /usr/libexec/rpcd/wanpref, mode: "0755"}
-    - {src: mwan3.user.j2, dest: /etc/mwan3.user, mode: "0755"}
-    - {src: warden-acl.json.j2, dest: /usr/share/acl.d/warden.json, mode: "0644"}
+  loop: "{{ router_scripts }}"
   loop_control:
-    label: "{{ item.dest }}"
+    label: "{{ item.path }}"
+  delegate_to: localhost
   notify:
     - Reload ubus services
     - Sync ISP overrides
 
+- name: Snapshot config for rollback
+  ansible.builtin.raw: mkdir -p /tmp/config.rollback && cp -a /etc/config/. /tmp/config.rollback/
+  changed_when: false
+
+- name: Write managed files
+  ansible.builtin.include_role:
+    name: mirror
+    tasks_from: push
+
+# Converges after a run that failed between writing and applying: reload_config records the applied state of each
+# config in /var/run/config.md5, so anything that differs from it is still waiting to be applied.
+- name: Find config written but not applied
+  ansible.builtin.raw: |
+    for f in {{ router_configs | join(' ') }}; do
+      applied=$(grep " /var/run/config.check/$f$" /var/run/config.md5 | cut -d' ' -f1)
+      current=$(uci show "$f" 2>/dev/null | md5sum | cut -d' ' -f1)
+      [ "$applied" = "$current" ] || echo "$f"
+    done
+  register: router_pending
+  changed_when: router_pending.stdout | trim | length > 0
+  check_mode: false
+  notify: Apply router config
+
 - name: Service state
-  community.general.openwrt_init:
-    name: "{{ item.name }}"
-    enabled: "{{ item.enabled }}"
-    state: "{{ 'started' if item.enabled else 'stopped' }}"
-  loop:
-    - {name: odhcpd, enabled: false}
-    - {name: mwan3, enabled: true}
+  ansible.builtin.raw: |
+    check={{ ansible_check_mode | int }}
+    want() {
+      if [ "$2" = on ]; then
+        /etc/init.d/$1 enabled || { echo "$1 enable"; [ "$check" = 1 ] || /etc/init.d/$1 enable; }
+        /etc/init.d/$1 running || { echo "$1 start"; [ "$check" = 1 ] || /etc/init.d/$1 start; }
+      else
+        /etc/init.d/$1 enabled && { echo "$1 disable"; [ "$check" = 1 ] || /etc/init.d/$1 disable; }
+        /etc/init.d/$1 running && { echo "$1 stop"; [ "$check" = 1 ] || /etc/init.d/$1 stop; }
+      fi
+      return 0
+    }
+    want odhcpd off
+    want mwan3 on
+  register: router_services
+  changed_when: router_services.stdout | trim | length > 0
+  check_mode: false
   when: not (ansible_check_mode and router_packages is changed)

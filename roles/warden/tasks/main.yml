@@ -1,14 +1,6 @@
 - name: Runtime dependency and service user
   ansible.builtin.include_tasks: "{{ warden_init }}-prereqs.yml"
 
-- name: Code root
-  ansible.builtin.file:
-    path: /opt/warden
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 # One reproducible archive per commit: its checksum says whether the code changed, and unpacking it
 # into an emptied directory drops files that left the repo.
 - name: Archive the committed warden tree
@@ -23,18 +15,72 @@
   changed_when: false
   check_mode: false
 
+- name: Read managed files
+  ansible.builtin.include_role:
+    name: mirror
+    tasks_from: pull
+  vars:
+    mirror_entries: "{{ warden_files }}"
+
 - name: Code archive
   ansible.builtin.copy:
     src: "{{ warden_archive }}"
-    dest: /opt/warden/warden.tar.gz
-    owner: root
-    group: root
+    dest: "{{ mirror_copy.work }}/opt/warden/warden.tar.gz"
     mode: "0644"
+  delegate_to: localhost
+  become: false
+
+- name: MQTT password
+  ansible.builtin.copy:
+    dest: "{{ mirror_copy.work }}/etc/warden/password"
+    content: "{{ secrets.mqtt[inventory_hostname] }}\n"
+    mode: "0640"
+  delegate_to: localhost
+  become: false
+  no_log: true
+  notify: Restart warden
+
+- name: Access point API password
+  ansible.builtin.copy:
+    dest: "{{ mirror_copy.work }}/etc/warden/wifi-password"
+    content: "{{ secrets.ap_api.password }}\n"
+    mode: "0640"
+  delegate_to: localhost
+  become: false
+  when: warden_wifi_api is defined
+  no_log: true
+  notify: Restart warden
+
+- name: Environment
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ mirror_copy.work }}/etc/warden/env"
+    mode: "0640"
+  delegate_to: localhost
+  become: false
+  notify: Restart warden
+
+- name: Service definition
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ mirror_copy.work }}{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ warden_init_files[warden_init] }}"
+  loop_control:
+    label: "{{ item.path }}"
+  delegate_to: localhost
+  become: false
+  notify: Restart warden
+
+- name: Write managed files
+  ansible.builtin.include_role:
+    name: mirror
+    tasks_from: push
 
 # Converges on its own: the marker holds the checksum of the archive last unpacked successfully, so a
 # failed or interrupted unpack, or a deleted tree, is redone on the next run. The new tree is swapped in by rename.
 - name: Code
-  ansible.builtin.shell: |
+  ansible.builtin.raw: |
     set -e
     cd /opt/warden
     sum=$(sha256sum warden.tar.gz)
@@ -50,44 +96,6 @@
     echo unpacked
   register: warden_unpack
   changed_when: "'unpacked' in warden_unpack.stdout"
-  notify: Restart warden
-
-- name: Config directory
-  ansible.builtin.file:
-    path: /etc/warden
-    state: directory
-    owner: root
-    group: warden
-    mode: "0750"
-
-- name: MQTT password
-  ansible.builtin.copy:
-    dest: /etc/warden/password
-    content: "{{ secrets.mqtt[inventory_hostname] }}\n"
-    owner: root
-    group: warden
-    mode: "0640"
-  no_log: true
-  notify: Restart warden
-
-- name: Access point API password
-  ansible.builtin.copy:
-    dest: /etc/warden/wifi-password
-    content: "{{ secrets.ap_api.password }}\n"
-    owner: root
-    group: warden
-    mode: "0640"
-  when: warden_wifi_api is defined
-  no_log: true
-  notify: Restart warden
-
-- name: Environment
-  ansible.builtin.template:
-    src: env.j2
-    dest: /etc/warden/env
-    owner: root
-    group: warden
-    mode: "0640"
   notify: Restart warden
 
 - name: Service

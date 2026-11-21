@@ -25,6 +25,7 @@ Hub of a four-repo system (homelab, imp, warden, console, all in `~/Projects`). 
 - gitleaks flags well-known sample secrets (e.g. the RFC 6455 WebSocket key); generate test values at runtime.
 - The Claude review action skips PRs that change `.github/workflows/code-review.yml`.
 - eap225 has no room for Python: `raw` only. `raw` is skipped in check mode unless `check_mode: false`, and its stdout has CRLF line endings (use `stdout_lines`).
+- A Python module on er605 costs ~9 s (`site.yml` once took 8m41s): files go through the `mirror` role (one `raw` read, rendered on the controller, one `raw` write) and other steady-state tasks are `raw`. BusyBox there has no `base64` or `stat` (use `python3 -m base64`, `find -perm -user -group`).
 - er605 runs Ansible modules with the full `python3` package (`python3-light` lacks `decimal` and `encodings.idna`) and `ansible_ssh_transfer_method: piped` (dropbear has no sftp).
 - Copying a directory with `ansible.builtin.copy` to er605 hangs before connecting; single files work, so deploy trees as one archive.
 - rpcd runs exec plugins with umask 077: anything a plugin writes for an unprivileged reader needs an explicit umask/chmod.

@@ -1,16 +1,3 @@
-- name: Polkit rule
-  ansible.builtin.template:
-    src: 50-warden.rules.j2
-    dest: /etc/polkit-1/rules.d/50-warden.rules
-    mode: "0644"
-
-- name: Unit
-  ansible.builtin.template:
-    src: warden.service.j2
-    dest: /etc/systemd/system/warden.service
-    mode: "0644"
-  notify: Restart warden
-
 - name: Apply pending changes
   ansible.builtin.meta: flush_handlers
 
