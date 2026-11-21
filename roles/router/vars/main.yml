@@ -4,6 +4,11 @@ router_scripts:
   - {src: wanpref.j2, path: /usr/libexec/rpcd/wanpref, mode: "0755"}
   - {src: mwan3.user.j2, path: /etc/mwan3.user, mode: "0755"}
   - {src: warden-acl.json.j2, path: /usr/share/acl.d/warden.json, mode: "0644"}
+# DNS ad blocking (adblock package) and the cron job that refreshes its feeds.
+router_adblock_files:
+  - {src: adblock.j2, path: /etc/config/adblock, mode: "0644"}
+  - {src: adblock.allowlist.j2, path: /etc/adblock/adblock.allowlist, mode: "0644"}
+  - {src: crontab.j2, path: /etc/crontabs/root, mode: "0600"}
 # Read by sysupgrade and by owut (upgrade.yml), so an upgrade keeps the files above and the services stay off.
 router_upgrade_files:
   - {src: upgrade-keep.j2, path: /lib/upgrade/keep.d/homelab-router, mode: "0644"}
@@ -17,4 +22,5 @@ router_files: >-
       {'path': '/etc/vnstat.conf', 'mode': '0644'}]
      + router_configs | map('regex_replace', '^', '/etc/config/') | map('community.general.dict_kv', 'path')
        | map('combine', {'mode': '0644'}) | list
-     + (router_scripts + router_upgrade_files) | map('ansible.utils.remove_keys', target=['src']) | list }}
+     + (router_scripts + router_adblock_files + router_upgrade_files)
+       | map('ansible.utils.remove_keys', target=['src']) | list }}

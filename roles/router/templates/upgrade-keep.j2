@@ -1,6 +1,7 @@
 # Files sysupgrade keeps besides /etc/config and package conffiles; this list keeps itself.
 /lib/upgrade/keep.d/homelab-router
 /etc/vnstat/
+/etc/crontabs/root
 {% for f in router_scripts %}
 {{ f.path }}
 {% endfor %}

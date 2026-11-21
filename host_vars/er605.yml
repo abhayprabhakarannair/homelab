@@ -19,6 +19,10 @@ dhcp_hosts: "{{ secrets.wol | combine(secrets.dhcp_hosts, {'wanpref-probe': wanp
 # Devices whose traffic prefers another ISP; the rest of `wans` stays as fallback in order. Keys are dhcp_hosts names.
 wan_preferences:
   jio-stb: jio
+# DNS ad blocking for the LAN. Exempt devices (dhcp_hosts names) get unfiltered DNS: the Jio box's apps call Jio
+# ad and analytics domains the list blocks. Allowlisted domains are never blocked.
+adblock_exempt: [jio-stb]
+adblock_allowlist: []
 
 warden_init: procd
 warden_uid: 200

@@ -280,6 +280,45 @@
         - ping -c1 -W2 1.1.1.1
       changed_when: false
 
+    - name: Read ad blocking state
+      ansible.builtin.command: >-
+        jsonfilter -i /var/run/adblock/adblock.runtime.json -e @.adblock_status -e @.blocked_domains
+      register: adblock
+      changed_when: false
+
+    - name: Ad blocking is enabled with a loaded list
+      ansible.builtin.assert:
+        that:
+          - adblock.stdout_lines[0] == 'enabled'
+          - adblock.stdout_lines[1] | int > 50000
+        quiet: true
+
+    - name: A LAN client gets ad domains refused and other names resolved
+      ansible.builtin.command: dig +time=2 +tries=2 @{{ lan_address | split('/') | first }} {{ item.name }}
+      loop:
+        - {name: googlesyndication.com, status: NXDOMAIN}
+        - {name: one.one.one.one, status: NOERROR}
+      loop_control:
+        label: "{{ item.name }}"
+      register: adblock_dig
+      changed_when: false
+      failed_when: "('status: ' ~ item.status ~ ',') not in adblock_dig.stdout"
+      delegate_to: localhost
+
+    - name: Read the devices exempt from ad blocking
+      ansible.builtin.command: nft list set inet adblock mac_allow
+      register: adblock_exempt_set
+      changed_when: false
+      no_log: true
+      when: adblock_exempt | length > 0
+
+    - name: Every exempt device bypasses ad blocking
+      ansible.builtin.assert:
+        that: dhcp_hosts[item].mac | lower in adblock_exempt_set.stdout
+        quiet: true
+      loop: "{{ adblock_exempt }}"
+      no_log: true
+
     - name: Read DHCP config
       ansible.builtin.command: uci show dhcp
       register: dhcp
