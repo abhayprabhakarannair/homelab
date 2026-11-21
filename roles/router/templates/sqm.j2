@@ -1,0 +1,15 @@
+{% for wan in wans if wan.sqm is defined %}
+config queue '{{ wan.name }}'
+	option enabled '1'
+	option interface '{{ wan.device }}'
+	option download '{{ wan.sqm.down }}'
+	option upload '{{ wan.sqm.up }}'
+	option qdisc 'cake'
+	option script 'piece_of_cake.qos'
+	option linklayer 'ethernet'
+	option overhead '44'
+	option tcMPU '84'
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
