@@ -146,9 +146,25 @@
         or links | map(attribute='name') | list != hostvars[item].wans | map(attribute='name') | list
         or links | selectattr('status', 'eq', 'online') | rejectattr('used_bytes', 'defined') | list != []
         or wan.usage_error is defined
+        or (wan.active and (links | selectattr('name', 'eq', wan.active) | first).rx_bps is not defined)
       vars:
         wan: "{{ (router_state.stdout | from_json).wan }}"
         links: "{{ wan.links }}"
+      no_log: true
+
+    - name: Every warden host reports its disks, and its UPS where it has one
+      ansible.builtin.command: "{{ sub }} {{ console }} -t {{ topic_root }}/{{ item }}/state"
+      loop: "{{ groups['wardens'] }}"
+      register: warden_state
+      changed_when: false
+      failed_when: >-
+        warden_state.rc != 0
+        or state.system.disks | default([]) | map(attribute='mount') | list
+           != hostvars[item].warden_disks | default(['/'])
+        or ('ups' in hostvars[item].warden_modules
+            and (state.ups.charge_pct is not defined or state.ups.error is defined))
+      vars:
+        state: "{{ warden_state.stdout | from_json }}"
       no_log: true
 
     - name: Console page is served over HTTPS
@@ -212,6 +228,43 @@
       changed_when: false
       failed_when: >-
         tls.rc != 0 or "Verification: OK" not in tls.stderr
+
+- name: Verify UPS monitoring
+  hosts: workstations
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Gather service state
+      ansible.builtin.service_facts:
+      when: ups is defined
+
+    - name: Driver, server and monitor are running
+      ansible.builtin.assert:
+        that: ansible_facts.services[item].state == 'running'
+      loop: ["nut-driver@{{ ups.name }}.service", nut-server.service, nut-monitor.service]
+      when: ups is defined
+
+    - name: Collect listening sockets
+      ansible.builtin.command: ss -tlnH sport = :3493
+      register: ups_sockets
+      changed_when: false
+      when: ups is defined
+
+    - name: The UPS server listens on localhost only
+      ansible.builtin.assert:
+        that:
+          - listeners != []
+          - listeners | reject('match', '127\.0\.0\.1:') | list == []
+      vars:
+        listeners: "{{ ups_sockets.stdout_lines | map('split') | map(attribute=3) | list }}"
+      when: ups is defined
+
+    - name: The UPS reports on mains or on battery
+      ansible.builtin.command: upsc {{ ups.name }}@localhost ups.status
+      register: ups_status
+      changed_when: false
+      failed_when: ups_status.rc != 0 or ups_status.stdout.split() | intersect(['OL', 'OB']) == []
+      when: ups is defined
 
 - name: Verify access points
   hosts: access_points

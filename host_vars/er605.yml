@@ -34,5 +34,6 @@ router_adblock_allowlist: []
 warden_init: procd
 warden_uid: 200
 warden_modules: [system, wake, wan, clients]
+warden_disks: [/overlay]
 warden_wakes: [devil]
 warden_wifi_api: http://192.168.0.2/ubus

@@ -16,6 +16,7 @@
   gather_facts: false
   roles:
     - workstation
+    - ups
 
 - name: Routers
   hosts: routers

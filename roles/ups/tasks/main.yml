@@ -1,0 +1,41 @@
+- name: Install NUT
+  community.general.pacman:
+    name: nut
+    state: present
+  register: ups_installed
+
+# The package's udev rule gives the nut group the UPS, but only for devices added after it is installed.
+- name: Apply the udev rule to the connected UPS  # noqa: no-handler
+  ansible.builtin.command: udevadm trigger --subsystem-match=usb --attr-match=idVendor={{ ups.vendorid }}
+  when: ups_installed is changed
+  changed_when: true
+
+- name: Configuration
+  ansible.builtin.template:
+    src: "{{ item.name }}.j2"
+    dest: /etc/nut/{{ item.name }}
+    owner: root
+    group: nut
+    mode: "{{ item.mode }}"
+  loop:
+    - {name: nut.conf, mode: "0644"}
+    - {name: ups.conf, mode: "0640"}
+    - {name: upsd.conf, mode: "0640"}
+    - {name: upsd.users, mode: "0640", secret: true}
+    - {name: upsmon.conf, mode: "0640", secret: true}
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: "{{ item.secret | default(false) }}"
+  notify: Restart NUT
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Driver, server and monitor running and enabled
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  loop: [nut-driver-enumerator.path, nut-driver-enumerator.service, nut-server.service, nut-monitor.service, nut.target]
+  when: not ansible_check_mode

@@ -17,7 +17,7 @@ warden and console are generic: they read deployment values from config (env var
 | Host | What |
 |---|---|
 | mephisto | Oracle Cloud A1.Flex, ap-hyderabad-1, AlmaLinux 10 aarch64, 2 vCPU / 12 GB / 200 GB. Ephemeral public IP; tailnet `100.101.245.84`, `mephisto.tail6aa22b.ts.net`. Hosts the bus and web apps. |
-| devil | Home workstation, CachyOS. Ansible control node, warden host, wake target. ufw managed by homelab. Its only uplink is the cable to er605: joining an ISP router's Wi-Fi as well gives it an IPv6 route that bypasses failover and ISP switching (2026-11-21). |
+| devil | Home workstation, CachyOS. Ansible control node, warden host (`power`, `system`, `sensors`, `ups`), wake target. ufw managed by homelab. The only load on an APC Back-UPS RS 1500G-IN (USB), read by NUT: at 30 % charge or 5 min runtime devil powers off and the UPS cuts its output, restoring it when mains returns (decision 25). Its only uplink is the cable to er605: joining an ISP router's Wi-Fi as well gives it an IPv6 route that bypasses failover and ISP switching (2026-11-21). |
 | er605 | TP-Link ER605 v2.20, the home router. OpenWrt 25.12.6 ([runbook](runbooks/openwrt.md)), `192.168.0.1`. Runs warden (`system`, `wake`, `wan`, `clients`): the wired, always-on wake path and power state for devil, ISP status and usage, and every LAN device with its link (from eap225's read-only API login) and ISP, with per-device ISP switching. Stock flash backup on devil (`~/er605-backup`), old-devil and mephisto. |
 | eap225 | TP-Link EAP225(US) v4.0, the only access point. OpenWrt 25.12.6, `192.168.0.2` (DHCP reservation), bridged to the LAN; one SSID on both bands. |
 | old-devil | Old laptop (NixOS, unreliable: no power-on after AC loss), `ssh old-devil -p 2442`. Its Omada controller, Home Assistant, Technitium, Syncthing and NUT client are unused; to be retired. |
@@ -70,21 +70,21 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 
 ## Secrets
 
-`group_vars/all/secrets.sops.yml` (SOPS, age). Recipients: the `~/.ssh/homelab` ed25519 key (kept in 1Password) and an offline age key (1Password). Holds become passwords, the Cloudflare DNS token, Wi-Fi credentials, MQTT passwords, wake targets (`wol.<host>.{mac,ip}`) and DHCP reservations (`dhcp_hosts.<name>.{mac,ip}`). Wake-target MAC/IP exist only here. Mosquitto password hashes are derived deterministically (`filter_plugins/mosquitto.py`) so re-runs don't churn.
+`group_vars/all/secrets.sops.yml` (SOPS, age). Recipients: the `~/.ssh/homelab` ed25519 key (kept in 1Password) and an offline age key (1Password). Holds become passwords, the Cloudflare DNS token, Wi-Fi credentials, MQTT passwords, the NUT monitor password (`nut.upsmon_password`), wake targets (`wol.<host>.{mac,ip}`) and DHCP reservations (`dhcp_hosts.<name>.{mac,ip}`). Wake-target MAC/IP exist only here. Mosquitto password hashes are derived deterministically (`filter_plugins/mosquitto.py`) so re-runs don't churn.
 
 ## Deployment
 
 | Target | How |
 |---|---|
 | mephisto | `site.yml`, roles `firewall` (tailnet zone, https only), `podman`, `mqtt`, `funnel`, `dns`, `console`, `caddy` |
-| devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
+| devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `ups` (NUT standalone: driver, `upsd` on 127.0.0.1, `upsmon` as primary), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
 | er605 warden | `site.yml`, role `warden` with `warden_init: procd`: `python3-paho-mqtt`, a `warden` user (UID 200) allowed unprivileged ping through `net.ipv4.ping_group_range`, a procd service with `no_new_privs` |
 | er605 | `site.yml`, role `router`: installs Python, mwan3, vnstat, conntrack, sqm-scripts, adblock and https-dns-proxy, templates `/etc/config/{system,network,dhcp,firewall,mwan3,vnstat,sqm,https-dns-proxy,adblock}`, the adblock allowlist and root's crontab. Files on er605 (router and warden) go through the `mirror` role: read in one `raw` call, rendered on the controller in `$XDG_RUNTIME_DIR`, written back in one, since each Python module costs ~9 s there (a converged `site.yml --check` takes ~50 s, was 8m41s). Changes apply with an automatic rollback: the router restores its previous config unless Ansible reconnects and confirms within 120 s. |
 | eap225 | `site.yml`, role `ap`: templates `/etc/config/{system,network,wireless}`, keeps dnsmasq and odhcpd off. No Python on the device (it needs ~12 MB of the 6 MB free), so tasks are `raw` over SSH or run on the controller. |
 | OpenWrt upgrades | `upgrade.yml` (manual): `owut` builds the release with current packages on the official build server, the device keeps its config and the roles' keep lists; eap225 first. `verify.yml` reports pending updates. [Runbook](runbooks/openwrt.md#d-upgrading). |
 | console | the `console` role builds with the repo's mise Node, copies `dist/` to `/srv/console`, templates `config.js` |
 
-`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, no retained topics left by removed devices, router usage per online WAN with no usage error, ISP switching as warden (unreserved addresses refused, stale overrides deleted), cake on shaped WANs, DNS upstreams only through a running DoH proxy per resolver, ad blocking (list loaded, an ad domain refused and a normal one resolved for a LAN client, exempt devices in the bypass set), OpenWrt keep lists and pending firmware updates (reported), console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
+`verify.yml` checks the deployed system end to end (services, bindings, auth refusal, ACL isolation, every warden host announcing, no retained topics left by removed devices, router usage per online WAN with no usage error, ISP switching as warden (unreserved addresses refused, stale overrides deleted), cake on shaped WANs, live rates on the active WAN, disks per warden host, NUT running with `upsd` on localhost only and the UPS readable by warden, DNS upstreams only through a running DoH proxy per resolver, ad blocking (list loaded, an ad domain refused and a normal one resolved for a LAN client, exempt devices in the bypass set), OpenWrt keep lists and pending firmware updates (reported), console over HTTPS with compression and cache headers, WebSocket upgrade, certificates). `site.yml --check` must report no changes on a converged system.
 
 ## Engineering rules
 
