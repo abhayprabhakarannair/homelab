@@ -9,7 +9,7 @@ router_scripts:
 router_files: >-
   {{ [{'path': '/etc/vnstat', 'mode': '0755', 'dir': true},
       {'path': '/usr/libexec/rpcd', 'mode': '0755', 'dir': true},
-      {'path': '/etc/vnstat.conf', 'mode': '0600'}]
+      {'path': '/etc/vnstat.conf', 'mode': '0644'}]
      + router_configs | map('regex_replace', '^', '/etc/config/') | map('community.general.dict_kv', 'path')
        | map('combine', {'mode': '0644'}) | list
      + router_scripts | map('ansible.utils.remove_keys', target=['src']) | list }}
