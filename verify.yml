@@ -108,6 +108,12 @@
       failed_when: result.rc != 0 or result.stdout != 'TLSv1.3'
       no_log: true
 
+    # Miniflux closes idle connections; its health check pings the database, which opens one to inspect.
+    - name: Miniflux opens a database connection
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ miniflux.port }}/healthcheck"
+      changed_when: false
+
     - name: Read the encryption of Miniflux's connections
       ansible.builtin.command: >-
         podman exec postgres psql -U postgres -Atc
