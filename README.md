@@ -6,13 +6,14 @@ System design, decisions and roadmap: [docs/architecture.md](docs/architecture.m
 
 | Host | Role |
 |---|---|
-| mephisto | Oracle VM (AlmaLinux 10, aarch64). Platform: MQTT bus, Caddy for `*.mephisto.iamabhay.fyi` on the tailnet |
+| mephisto | Oracle VM (AlmaLinux 10, aarch64). Platform: MQTT bus, Caddy for `*.mephisto.iamabhay.fyi` on the tailnet, the platform Postgres (`db.mephisto.iamabhay.fyi`), Miniflux (`rss.`) |
 | devil | Workstation (CachyOS). Runs warden; woken by er605's warden |
 
 ## Network
 
 - `*.mephisto.iamabhay.fyi` resolves to mephisto's tailnet address; Caddy holds a wildcard certificate (DNS-01 via Cloudflare). Reachable from the tailnet only.
 - The MQTT bus listens on localhost. Tailnet clients reach its WebSocket listener through Caddy; agents that should not depend on the tailnet (warden) use Tailscale Funnel on `:8443`.
+- Postgres listens on mephisto's tailnet address only, TLS 1.3, one role and database per app ([runbook](docs/runbooks/postgres.md)). Who reaches it is set by the tailnet policy, `roles/tailnet/files/policy.hujson`, applied through the Tailscale API: edit that file, not the admin console.
 - Topics are `home/<client>/{meta,status,state,event,cmd}`. Each client may write its own topics and read its own `cmd`; the console reads everything and writes any `cmd`.
 
 ## Secrets

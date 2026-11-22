@@ -95,3 +95,5 @@ Mobile apps use the Fever or Google Reader API, turned on per user in Settings â
 - Fever: server `https://rss.mephisto.iamabhay.fyi/fever/`.
 
 The phone must be on the tailnet.
+
+Subscriptions, categories and per-feed settings live only in Miniflux's database, not in this repo (they were added through the UI and API), so they are only as safe as the Postgres backups. Hacker News and Lobsters have "Fetch original content" on, since their feeds carry only links. `miniflux.batch_size` (200) is above the feed count, so every feed is refreshed on each hourly poll; raise it if the feed count passes it.
