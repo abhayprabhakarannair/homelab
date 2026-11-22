@@ -33,7 +33,11 @@
       loop: "{{ certs | dict2items | product(['name', 'expiry']) }}"
       loop_control:
         label: "{{ item.0.key }} {{ item.1 }}"
+      register: cert_check
       changed_when: false
+      failed_when: >-
+        cert_check.rc != 0
+        or (item.1 == 'name' and 'does match certificate' not in cert_check.stdout)
 
     - name: Collect listening sockets
       ansible.builtin.command: ss -tlnH
