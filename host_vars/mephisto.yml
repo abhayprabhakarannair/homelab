@@ -4,6 +4,9 @@ sites:
     immutable: [/vendor/*]
     proxy:
       /mqtt: "127.0.0.1:{{ mqtt.ws_port }}"
+  rss:
+    proxy:
+      "*": "127.0.0.1:{{ miniflux.port }}"
 
 # Certificates for services that terminate TLS themselves; Caddy has its own.
 certs:

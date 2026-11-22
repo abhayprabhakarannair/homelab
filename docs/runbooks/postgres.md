@@ -84,3 +84,14 @@ sudo podman exec postgres psql -U postgres -d restore_test -c 'select count(*) f
 sudo podman exec postgres dropdb -U postgres restore_test
 rm /tmp/miniflux.dump
 ```
+
+## Miniflux
+
+`https://rss.mephisto.iamabhay.fyi`, tailnet only. The `miniflux` role runs the distroless image (read-only, no capabilities) on `127.0.0.1:8080` behind Caddy and connects to Postgres as its own role with `sslmode=verify-full`. The admin account (`miniflux.admin`, password `secrets.miniflux.admin`) is created on first start only; changing the password in SOPS later does not change it, so change it in Settings or with `sudo podman exec -it miniflux /usr/bin/miniflux -reset-password`.
+
+Mobile apps use the Fever or Google Reader API, turned on per user in Settings → Integrations, each with its own username and password (not the login password):
+
+- Google Reader (Read You, FeedMe, Reeder, NetNewsWire): server `https://rss.mephisto.iamabhay.fyi`.
+- Fever: server `https://rss.mephisto.iamabhay.fyi/fever/`.
+
+The phone must be on the tailnet.

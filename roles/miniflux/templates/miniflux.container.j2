@@ -1,0 +1,21 @@
+[Unit]
+Description=Miniflux
+Wants=postgres.service
+After=postgres.service
+
+[Container]
+Image={{ images.miniflux }}
+ContainerName=miniflux
+Network=host
+EnvironmentFile={{ miniflux_dir }}/env
+ReadOnly=true
+DropCapability=ALL
+NoNewPrivileges=true
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
