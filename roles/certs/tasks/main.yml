@@ -1,0 +1,59 @@
+- name: State directory for lego
+  ansible.builtin.file:
+    path: "{{ certs_dir }}/lego"
+    state: directory
+    mode: "0700"
+
+- name: Certificate directories for the services
+  ansible.builtin.file:
+    path: "{{ item.dest }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "0750"
+    setype: container_file_t
+  loop: "{{ certs.values() }}"
+
+- name: Cloudflare credentials
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ certs_dir }}/env"
+    mode: "0600"
+  no_log: true
+
+- name: Deploy script
+  ansible.builtin.template:
+    src: deploy.j2
+    dest: "{{ certs_deploy }}"
+    mode: "0755"
+
+- name: Renewal units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/systemd/system/{{ item }}
+    mode: "0644"
+  loop: [certs-renew.service, certs-renew.timer]
+  register: certs_units
+
+- name: Read issued certificates
+  ansible.builtin.stat:
+    path: "{{ item.value.dest }}/server.crt"
+  loop: "{{ certs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: certs_issued
+
+- name: Issue missing certificates
+  ansible.builtin.systemd_service:
+    name: certs-renew.service
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode and certs_issued.results | rejectattr('stat.exists') | list | length > 0
+
+- name: Renewal timer
+  ansible.builtin.systemd_service:
+    name: certs-renew.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: not (ansible_check_mode and certs_units is changed)

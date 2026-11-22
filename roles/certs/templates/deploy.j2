@@ -1,0 +1,23 @@
+#!/bin/bash
+# Installs each certificate where its service reads it and reloads the service, only when lego replaced it.
+set -euo pipefail
+
+deploy() {
+	local src={{ certs_dir }}/lego/certificates/$1 dest=$2 owner=$3 service=$4
+	if cmp -s "$src.crt" "$dest/server.crt" && cmp -s "$src.key" "$dest/server.key"; then
+		return
+	fi
+	install -m 0644 -o "$owner" -g "$owner" "$src.crt" "$dest/server.crt.new"
+	install -m 0600 -o "$owner" -g "$owner" "$src.key" "$dest/server.key.new"
+	# install labels files for their path (etc_t); the container reads only the directory's label.
+	chcon --reference="$dest" "$dest/server.crt.new" "$dest/server.key.new"
+	mv -f "$dest/server.crt.new" "$dest/server.crt"
+	mv -f "$dest/server.key.new" "$dest/server.key"
+	if systemctl is-active --quiet "$service.service"; then
+		podman kill --signal HUP "$service"
+	fi
+}
+
+{% for name, cert in certs.items() %}
+deploy {{ name }}.{{ inventory_hostname }}.{{ domain }} {{ cert.dest }} {{ cert.owner }} {{ cert.service }}
+{% endfor %}
