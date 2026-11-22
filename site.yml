@@ -10,6 +10,7 @@
     - dns
     - certs
     - postgres
+    - miniflux
     - console
     - caddy
 

@@ -15,7 +15,7 @@
     - name: Services are running
       ansible.builtin.assert:
         that: ansible_facts.services[item].state == 'running'
-      loop: [mqtt.service, caddy.service, postgres.service]
+      loop: [mqtt.service, caddy.service, postgres.service, miniflux.service]
 
     - name: Read the renewal timer
       ansible.builtin.systemd_service:
@@ -64,6 +64,14 @@
       vars:
         listeners: "{{ sockets.stdout_lines | map('split') | map(attribute=3) | list }}"
 
+    - name: Miniflux listens on localhost only
+      ansible.builtin.assert:
+        that:
+          - listeners | select('search', ':' ~ miniflux.port ~ '$') | list | length > 0
+          - listeners | select('search', ':' ~ miniflux.port ~ '$') | reject('match', '127\.0\.0\.1:') | list == []
+      vars:
+        listeners: "{{ sockets.stdout_lines | map('split') | map(attribute=3) | list }}"
+
     - name: Read firewall zones
       ansible.posix.firewalld_info:
         active_zones: true
@@ -99,6 +107,18 @@
       changed_when: false
       failed_when: result.rc != 0 or result.stdout != 'TLSv1.3'
       no_log: true
+
+    - name: Read the encryption of Miniflux's connections
+      ansible.builtin.command: >-
+        podman exec postgres psql -U postgres -Atc
+        "select distinct ssl, version from pg_stat_activity join pg_stat_ssl using (pid)
+        where usename = 'miniflux'"
+      register: miniflux_ssl
+      changed_when: false
+
+    - name: Miniflux reaches its database over TLS 1.3 only
+      ansible.builtin.assert:
+        that: miniflux_ssl.stdout_lines == ['t|TLSv1.3']
 
     - name: The superuser cannot connect over the network
       ansible.builtin.command: >-
@@ -305,6 +325,15 @@
       changed_when: false
       failed_when: >-
         tls.rc != 0 or "Verification: OK" not in tls.stderr
+
+    - name: Miniflux answers through Caddy
+      ansible.builtin.uri:
+        url: "https://rss.{{ inventory_hostname }}.{{ domain }}/healthcheck"
+        return_content: true
+      delegate_to: localhost
+      become: false
+      register: miniflux_health
+      failed_when: miniflux_health.status != 200 or miniflux_health.content != 'OK'
 
     - name: Postgres serves a valid certificate to tailnet clients, over TLS 1.3 only
       ansible.builtin.shell: |
