@@ -79,7 +79,7 @@
 
     - name: Postgres refuses connections without TLS
       ansible.builtin.command: >-
-        podman exec postgres psql -w -c 'select 1'
+        psql -w -c 'select 1'
         'host={{ db_host }} port={{ postgres.port }} dbname={{ item }} user={{ item }} sslmode=disable'
       loop: "{{ postgres.apps.keys() }}"
       register: result
@@ -88,7 +88,7 @@
 
     - name: Every app connects with a verified certificate over TLS 1.3
       ansible.builtin.command: >-
-        podman exec -e PGPASSWORD postgres psql -w -Atc
+        psql -w -Atc
         'select version from pg_stat_ssl where pid = pg_backend_pid()'
         'host={{ db_host }} port={{ postgres.port }} dbname={{ item }} user={{ item }}
         sslmode=verify-full sslrootcert=system'
@@ -102,7 +102,7 @@
 
     - name: The superuser cannot connect over the network
       ansible.builtin.command: >-
-        podman exec postgres psql -w -c 'select 1'
+        psql -w -c 'select 1'
         'host={{ db_host }} port={{ postgres.port }} dbname=postgres user=postgres
         sslmode=verify-full sslrootcert=system'
       register: result

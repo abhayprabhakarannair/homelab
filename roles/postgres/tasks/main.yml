@@ -1,6 +1,6 @@
-- name: Driver for the database modules
+- name: Client and the driver for the database modules
   ansible.builtin.dnf:
-    name: python3-psycopg2
+    name: [postgresql, python3-psycopg2]
     state: present
 
 - name: Config directories
@@ -38,7 +38,7 @@
 
 - name: Socket directory at boot
   ansible.builtin.copy:
-    content: "d {{ postgres_socket_dir }} 0755 {{ postgres_uid }} {{ postgres_uid }} -\n"
+    content: "d {{ postgres_socket_dir }} 3775 {{ postgres_uid }} {{ postgres_uid }} -\n"
     dest: /etc/tmpfiles.d/homelab-postgres.conf
     mode: "0644"
 
@@ -48,7 +48,7 @@
     state: directory
     owner: "{{ postgres_uid }}"
     group: "{{ postgres_uid }}"
-    mode: "0755"
+    mode: "3775"  # what the image's entrypoint sets on every start
 
 - name: Quadlet
   ansible.builtin.template:
