@@ -7,7 +7,8 @@ all:
     workstations:
       hosts:
         devil:
-          ansible_connection: local
+          ansible_host: devil.tail6aa22b.ts.net
+          ansible_connection: "{{ 'local' if lookup('ansible.builtin.pipe', 'hostname -s') == 'devil' else 'ssh' }}"
           ansible_python_interpreter: /usr/bin/python3
           ansible_become_password: "{{ secrets.become.devil }}"
     wardens:
