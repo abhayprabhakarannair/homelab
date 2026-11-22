@@ -5,6 +5,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+# lego v5 has no renew command: run gets a missing certificate and renews one only when it is due.
 {% for name in certs %}
 ExecStart=podman run --rm --env-file {{ certs_dir }}/env -v {{ certs_dir }}/lego:/data:Z {{ images.lego }} \
   run --accept-tos --account-id homelab --path /data --dns cloudflare --dns.resolvers 1.1.1.1:53 \
