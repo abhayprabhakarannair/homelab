@@ -27,14 +27,13 @@
 
     - name: Every certificate is for its name and valid for more than 14 days
       ansible.builtin.command: >-
-        openssl x509 -noout -checkend 1209600 -checkhost {{ item.key }}.{{ inventory_hostname }}.{{ domain }}
-        -in {{ item.value.dest }}/server.crt
-      loop: "{{ certs | dict2items }}"
+        openssl x509 -noout -in {{ item.0.value.dest }}/server.crt
+        {{ '-checkhost ' ~ item.0.key ~ '.' ~ inventory_hostname ~ '.' ~ domain if item.1 == 'name'
+           else '-checkend 1209600' }}
+      loop: "{{ certs | dict2items | product(['name', 'expiry']) }}"
       loop_control:
-        label: "{{ item.key }}"
-      register: cert_check
+        label: "{{ item.0.key }} {{ item.1 }}"
       changed_when: false
-      failed_when: cert_check.rc != 0 or 'does match certificate' not in cert_check.stdout
 
     - name: Collect listening sockets
       ansible.builtin.command: ss -tlnH

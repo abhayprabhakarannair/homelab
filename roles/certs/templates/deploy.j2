@@ -9,6 +9,8 @@ deploy() {
 	fi
 	install -m 0644 -o "$owner" -g "$owner" "$src.crt" "$dest/server.crt.new"
 	install -m 0600 -o "$owner" -g "$owner" "$src.key" "$dest/server.key.new"
+	# install labels files for their path (etc_t); the container reads only the directory's label.
+	chcon --reference="$dest" "$dest/server.crt.new" "$dest/server.key.new"
 	mv -f "$dest/server.crt.new" "$dest/server.crt"
 	mv -f "$dest/server.key.new" "$dest/server.key"
 	if systemctl is-active --quiet "$service.service"; then
