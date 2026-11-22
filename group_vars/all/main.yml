@@ -31,6 +31,7 @@ postgres:
 miniflux:
   port: 8080
   admin: admin
+  batch_size: 200  # feeds refreshed per hourly poll; above the feed count, so every feed is checked hourly
 
 warden:
   repo: "{{ lookup('env', 'HOME') }}/Projects/warden"
