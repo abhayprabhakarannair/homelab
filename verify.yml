@@ -16,6 +16,26 @@
         that: ansible_facts.services[item].state == 'running'
       loop: [mqtt.service, caddy.service]
 
+    - name: Read the renewal timer
+      ansible.builtin.systemd_service:
+        name: certs-renew.timer
+      register: certs_timer
+
+    - name: Certificate renewal is scheduled
+      ansible.builtin.assert:
+        that: certs_timer.status.ActiveState == 'active'
+
+    - name: Every certificate is for its name and valid for more than 14 days
+      ansible.builtin.command: >-
+        openssl x509 -noout -checkend 1209600 -checkhost {{ item.key }}.{{ inventory_hostname }}.{{ domain }}
+        -in {{ item.value.dest }}/server.crt
+      loop: "{{ certs | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: cert_check
+      changed_when: false
+      failed_when: cert_check.rc != 0 or 'does match certificate' not in cert_check.stdout
+
     - name: Collect listening sockets
       ansible.builtin.command: ss -tlnH
       register: sockets

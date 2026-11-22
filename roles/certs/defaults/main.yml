@@ -1,0 +1,2 @@
+certs_dir: /etc/homelab/certs
+certs_deploy: /usr/local/libexec/homelab-cert-deploy

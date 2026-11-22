@@ -4,3 +4,10 @@ sites:
     immutable: [/vendor/*]
     proxy:
       /mqtt: "127.0.0.1:{{ mqtt.ws_port }}"
+
+# Certificates for services that terminate TLS themselves; Caddy has its own.
+certs:
+  db:
+    dest: /etc/homelab/postgres/tls
+    owner: 999  # postgres in the official image
+    service: postgres
