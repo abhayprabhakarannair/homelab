@@ -1,0 +1,62 @@
+- name: API token from the OAuth client
+  ansible.builtin.uri:
+    url: "{{ tailnet_api }}/oauth/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: "{{ secrets.tailscale_oauth.client_id }}"
+      client_secret: "{{ secrets.tailscale_oauth.client_secret }}"
+  register: tailnet_token
+  delegate_to: localhost
+  become: false
+  run_once: true
+  check_mode: false
+  no_log: true
+
+- name: Read the live policy
+  ansible.builtin.uri:
+    url: "{{ tailnet_api }}/tailnet/-/acl"
+    headers:
+      Authorization: Bearer {{ tailnet_token.json.access_token }}
+      Accept: application/hujson
+    return_content: true
+  register: tailnet_live
+  delegate_to: localhost
+  become: false
+  run_once: true
+  check_mode: false
+  no_log: true
+
+- name: Policy matches the repo
+  ansible.utils.fact_diff:
+    before: "{{ tailnet_live.content | trim }}"
+    after: "{{ lookup('ansible.builtin.file', 'policy.hujson') | trim }}"
+  register: tailnet_diff
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Upload the policy
+  ansible.builtin.uri:
+    url: "{{ tailnet_api }}/tailnet/-/acl"
+    method: POST
+    headers:
+      Authorization: Bearer {{ tailnet_token.json.access_token }}
+      Content-Type: application/hujson
+      If-Match: "{{ tailnet_live.etag }}"
+    body: "{{ lookup('ansible.builtin.file', 'policy.hujson') }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: tailnet_upload
+  when: tailnet_diff is changed and not ansible_check_mode
+  changed_when: true
+  failed_when: false
+  no_log: true
+
+- name: Policy was accepted
+  ansible.builtin.assert:
+    that: tailnet_upload.status == 200
+    fail_msg: "{{ tailnet_upload.json | default(tailnet_upload.msg) }}"
+  run_once: true
+  when: tailnet_upload is not skipped
