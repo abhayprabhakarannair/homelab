@@ -1,0 +1,6 @@
+# The superuser only over the Unix socket, as root (Ansible) or postgres.
+local all postgres peer map=admin
+hostnossl all all all reject
+{% for app, conf in postgres.apps.items() %}
+hostssl {{ app }} {{ app }} {{ tailnet_cidr }} scram-sha-256
+{% endfor %}

@@ -1,0 +1,111 @@
+- name: Client and the driver for the database modules
+  ansible.builtin.dnf:
+    name: [postgresql, python3-psycopg2]
+    state: present
+
+- name: Config directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ postgres_uid }}"
+    mode: "0750"
+    setype: container_file_t
+  loop: ["{{ postgres_dir }}", "{{ postgres_dir }}/conf"]
+
+- name: Server config
+  ansible.builtin.template:
+    src: "{{ item.name }}.j2"
+    dest: "{{ postgres_dir }}/conf/{{ item.name }}"
+    owner: root
+    group: "{{ postgres_uid }}"
+    mode: "0640"
+    setype: container_file_t
+  loop:
+    - {name: postgresql.conf, handler: Restart postgres}
+    - {name: pg_hba.conf, handler: Reload postgres}
+    - {name: pg_ident.conf, handler: Reload postgres}
+  loop_control:
+    label: "{{ item.name }}"
+  notify: "{{ item.handler }}"
+
+- name: Superuser password for initdb
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ postgres_dir }}/env"
+    mode: "0600"
+  no_log: true
+
+- name: Socket directory at boot
+  ansible.builtin.copy:
+    content: "d {{ postgres_socket_dir }} 3775 {{ postgres_uid }} {{ postgres_uid }} -\n"
+    dest: /etc/tmpfiles.d/homelab-postgres.conf
+    mode: "0644"
+
+- name: Socket directory
+  ansible.builtin.file:
+    path: "{{ postgres_socket_dir }}"
+    state: directory
+    owner: "{{ postgres_uid }}"
+    group: "{{ postgres_uid }}"
+    mode: "3775"  # what the image's entrypoint sets on every start
+
+- name: Quadlet
+  ansible.builtin.template:
+    src: postgres.container.j2
+    dest: /etc/containers/systemd/postgres.container
+    mode: "0644"
+  notify: Restart postgres
+
+- name: Apply pending changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Postgres running
+  ansible.builtin.systemd_service:
+    name: postgres.service
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Socket accepts connections
+  ansible.builtin.wait_for:
+    path: "{{ postgres_socket_dir }}/.s.PGSQL.{{ postgres.port }}"
+    timeout: 120
+  when: not ansible_check_mode
+
+- name: Read the socket
+  ansible.builtin.stat:
+    path: "{{ postgres_socket_dir }}/.s.PGSQL.{{ postgres.port }}"
+  register: postgres_socket
+
+- name: App roles
+  community.postgresql.postgresql_user:
+    name: "{{ item.key }}"
+    password: "{{ secrets.postgres.apps[item.key] }}"
+    conn_limit: "{{ item.value.conn_limit }}"
+    login_unix_socket: "{{ postgres_socket_dir }}"
+  loop: "{{ postgres.apps | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: postgres_socket.stat.exists
+  no_log: true
+
+- name: App databases
+  community.postgresql.postgresql_db:
+    name: "{{ item }}"
+    owner: "{{ item }}"
+    login_unix_socket: "{{ postgres_socket_dir }}"
+  loop: "{{ postgres.apps.keys() }}"
+  when: postgres_socket.stat.exists
+
+- name: Only the app's own role connects to its database
+  community.postgresql.postgresql_privs:
+    login_db: "{{ item }}"
+    type: database
+    objs: "{{ item }}"
+    privs: ALL
+    roles: PUBLIC
+    state: absent
+    login_unix_socket: "{{ postgres_socket_dir }}"
+  loop: "{{ postgres.apps.keys() }}"
+  when: postgres_socket.stat.exists

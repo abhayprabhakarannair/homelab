@@ -9,6 +9,7 @@
     - funnel
     - dns
     - certs
+    - postgres
     - console
     - caddy
 

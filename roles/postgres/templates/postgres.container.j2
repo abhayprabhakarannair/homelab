@@ -1,0 +1,23 @@
+[Unit]
+Description=PostgreSQL
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+
+[Container]
+Image={{ images.postgres }}
+ContainerName=postgres
+Network=host
+EnvironmentFile={{ postgres_dir }}/env
+Volume={{ postgres_dir }}/conf:/etc/postgresql:ro,Z
+Volume={{ postgres_dir }}/tls:/etc/postgresql-tls:ro,Z
+Volume={{ postgres_socket_dir }}:/var/run/postgresql:z
+Volume=postgres-data:/var/lib/postgresql:Z
+Exec=postgres -c config_file=/etc/postgresql/postgresql.conf
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

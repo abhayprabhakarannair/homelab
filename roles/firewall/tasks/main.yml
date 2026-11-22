@@ -18,11 +18,12 @@
     immediate: true
   when: not (ansible_check_mode and firewall_zone is changed)
 
-- name: HTTPS from the tailnet
+- name: Services open to the tailnet
   ansible.posix.firewalld:
     zone: tailnet
-    service: https
+    service: "{{ item }}"
     state: enabled
     permanent: true
     immediate: true
   when: not (ansible_check_mode and firewall_zone is changed)
+  loop: [https, postgresql]
