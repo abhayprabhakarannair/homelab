@@ -2,6 +2,7 @@
   hosts: platform
   become: true
   roles:
+    - tailnet
     - firewall
     - podman
     - mqtt

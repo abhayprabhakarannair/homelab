@@ -74,12 +74,13 @@ The console has no device-specific code: cards come from `meta.kind` and `meta.c
 
 ## Secrets
 
-`group_vars/all/secrets.sops.yml` (SOPS, age). Recipients: the `~/.ssh/homelab` ed25519 key (kept in 1Password) and an offline age key (1Password). Holds become passwords, the Cloudflare DNS token, Wi-Fi credentials, MQTT passwords, the NUT monitor password (`nut.upsmon_password`), wake targets (`wol.<host>.{mac,ip}`) and DHCP reservations (`dhcp_hosts.<name>.{mac,ip}`). Wake-target MAC/IP exist only here. Mosquitto password hashes are derived deterministically (`filter_plugins/mosquitto.py`) so re-runs don't churn.
+`group_vars/all/secrets.sops.yml` (SOPS, age). Recipients: the `~/.ssh/homelab` ed25519 key (kept in 1Password) and an offline age key (1Password). Holds become passwords, the Cloudflare DNS token, the Tailscale OAuth client (`tailscale_oauth.{client_id,client_secret}`), Wi-Fi credentials, MQTT passwords, the NUT monitor password (`nut.upsmon_password`), wake targets (`wol.<host>.{mac,ip}`) and DHCP reservations (`dhcp_hosts.<name>.{mac,ip}`). Wake-target MAC/IP exist only here. Mosquitto password hashes are derived deterministically (`filter_plugins/mosquitto.py`) so re-runs don't churn.
 
 ## Deployment
 
 | Target | How |
 |---|---|
+| tailnet | `site.yml`, role `tailnet` (on the controller): the tailnet policy is `roles/tailnet/files/policy.hujson`, uploaded through the Tailscale API (OAuth client with the `policy_file` scope) when it differs from the live one; Tailscale runs the policy's `tests` and refuses a policy that fails them. Edit the file, never the admin console. |
 | mephisto | `site.yml`, roles `firewall` (tailnet zone, https only), `podman`, `mqtt`, `funnel`, `dns`, `console`, `caddy` |
 | devil | `site.yml`, roles `workstation` (ufw from `host_vars/devil.yml`), `ups` (NUT standalone: driver, `upsd` on 127.0.0.1, `upsmon` as primary), `warden` (git archive → `/opt/warden`, unprivileged user, polkit for power-off/reboot/suspend only, hardened unit) |
 | er605 warden | `site.yml`, role `warden` with `warden_init: procd`: `python3-paho-mqtt`, a `warden` user (UID 200) allowed unprivileged ping through `net.ipv4.ping_group_range`, a procd service with `no_new_privs` |

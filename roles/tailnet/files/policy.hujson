@@ -1,0 +1,40 @@
+// Managed by homelab (roles/tailnet): edit here, not in the admin console.
+{
+	"hosts": {
+		"mephisto": "100.101.245.84",
+	},
+
+	"tagOwners": {
+		// Backends that use the platform Postgres (decision 27).
+		"tag:db-client": ["autogroup:admin"],
+	},
+
+	"grants": [
+		// Your own devices reach everything.
+		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+		// Database clients reach Postgres and nothing else.
+		{"src": ["tag:db-client"], "dst": ["mephisto"], "ip": ["tcp:5432"]},
+	],
+
+	"ssh": [
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	"nodeAttrs": [
+		// Funnel carries the bus for warden (decision 6).
+		{"target": ["autogroup:member"], "attr": ["funnel"]},
+	],
+
+	"tests": [
+		{
+			"src":    "tag:db-client",
+			"accept": ["mephisto:5432"],
+			"deny":   ["mephisto:22", "mephisto:443", "mephisto:1883"],
+		},
+	],
+}
