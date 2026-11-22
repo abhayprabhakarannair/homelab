@@ -1,6 +1,6 @@
 # Roadmap
 
-## Status (2026-11-21)
+## Status (2026-11-22)
 
 All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; devil and er605 run warden 0.4.0 (on er605: wake path, ISP status and usage, devices with link and ISP, ISP switching for reserved devices, decisions 17 and 18). The link was re-measured on BSNL (decision 19); it shows no bufferbloat, so no WAN is shaped (decision 21). Both devices were upgraded with `upgrade.yml` (decision 22) to 25.12.6 with current packages. er605 blocks ads and trackers for the LAN through dnsmasq, the Jio set-top box included on trial (decision 23). Its upstream DNS goes over HTTPS (decision 24). devil is protected by its UPS through NUT, which powers it off at 30 % and brings it back when mains returns (decision 25). The console shows each host's disks, devil's UPS and live rates per ISP, and how fresh each card's state is. The tailnet policy is kept in this repo (`roles/tailnet`); mephisto runs the platform Postgres (`db.mephisto.iamabhay.fyi`, tailnet only, TLS 1.3, a role and database per app), and database clients outside the members' devices get `tag:db-client`, which reaches only that port (decision 27). Miniflux is its first app, at `rss.mephisto.iamabhay.fyi`.
 

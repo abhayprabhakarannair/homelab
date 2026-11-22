@@ -36,3 +36,9 @@ Hub of a three-repo system (homelab, warden, console, all in `~/Projects`; imp i
 - er605 has no curl: `mwan3 use wan_<isp> uclient-fetch -q -O - https://ipinfo.io/org` shows the ISP behind each WAN.
 - Backslash escapes in Jinja strings inside folded YAML (`>-`) broke rendering in `verify.yml`; use a character class (`[(]`).
 - Force pushes are denied, so bring a PR branch up to date by merging `main` into it, not rebasing.
+- Podman's published ports bypass firewalld zones: services that must stay off the public interface use `Network=host` and bind to the tailnet address.
+- lego v5 has no `renew`: `run` gets a missing certificate and renews only when due. Reviewers (the Claude bot included) often reason from older versions: check a claim on the host against the pinned version before changing code.
+- `install` labels new files for their path (`etc_t` under `/etc`), which containers cannot read: copy the directory's label (`chcon --reference`) onto files a container reads.
+- The Postgres image has no CA bundle, so `verify-full` cannot be tested from inside it: `verify.yml` uses the host's `psql`. Its entrypoint sets the socket directory to 3775 on every start.
+- `openssl x509` prints nothing for `-checkhost` when `-checkend` is given: run them separately.
+- CI's `ansible-galaxy collection install` sometimes fails with "Missing expected 'results' in ansible-galaxy cache" (Galaxy, not the code): re-run the job.
