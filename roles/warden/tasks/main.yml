@@ -2,12 +2,13 @@
   ansible.builtin.include_tasks: "{{ warden_init }}-prereqs.yml"
 
 # One reproducible archive per commit: its checksum says whether the code changed, and unpacking it
-# into an emptied directory drops files that left the repo.
+# into an emptied directory drops files that left the repo. gzip rather than git's own compression,
+# whose output depends on the zlib it was built with and so differs between control nodes.
 - name: Archive the committed warden tree
   ansible.builtin.shell: |
     set -euo pipefail
     mkdir -p "$(dirname "{{ warden_archive }}")"
-    git -C "{{ warden.repo }}" -c tar.umask=022 archive --format=tar.gz -o "{{ warden_archive }}" HEAD warden
+    git -C "{{ warden.repo }}" -c tar.umask=022 archive --format=tar HEAD warden | gzip -9n > "{{ warden_archive }}"
   args:
     executable: /bin/bash
   delegate_to: localhost

@@ -9,6 +9,8 @@ all:
         devil:
           ansible_host: devil.tail6aa22b.ts.net
           ansible_connection: "{{ 'local' if lookup('ansible.builtin.pipe', 'hostname -s') == 'devil' else 'ssh' }}"
+          # With a terminal, sudo there adds an OSC 3008 sequence to raw output, which the mirror role parses.
+          ansible_ssh_use_tty: false
           ansible_python_interpreter: /usr/bin/python3
           ansible_become_password: "{{ secrets.become.devil }}"
     wardens:
