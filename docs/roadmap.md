@@ -6,7 +6,7 @@ All three repos are on `main` with CI green; `verify.yml` passes on every host a
 
 ## Next
 
-1. Platform Postgres (decision 27), one PR each: the `certs` role (lego, `db.mephisto.iamabhay.fyi`), the `postgres` role (TLS 1.3 on the tailnet, a role and database per app, `verify.yml` checks, runbook), then Miniflux as its first app at `rss.mephisto.iamabhay.fyi`. Then backups for it (pgBackRest or `pg_dump`; target undecided).
+1. Platform Postgres (decision 27): Miniflux as its first app at `rss.mephisto.iamabhay.fyi`. Then backups for it (pgBackRest or `pg_dump`; target undecided).
 2. Retire old-devil and the Omada controller (the last step of decision 16).
 3. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
 4. Decide decision 15 with decision 19's numbers.

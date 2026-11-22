@@ -1,0 +1,11 @@
+- name: Restart postgres
+  ansible.builtin.systemd_service:
+    name: postgres.service
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Reload postgres
+  ansible.builtin.command: podman kill --signal HUP postgres
+  changed_when: true
+  when: not ansible_check_mode

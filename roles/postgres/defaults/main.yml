@@ -1,0 +1,3 @@
+postgres_dir: /etc/homelab/postgres
+postgres_socket_dir: /run/homelab-postgres
+postgres_uid: 999

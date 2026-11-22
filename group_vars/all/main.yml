@@ -1,6 +1,7 @@
 domain: iamabhay.fyi
 lan_cidr: 192.168.0.0/24
 lan_broadcast: 192.168.0.255
+tailnet_cidr: 100.64.0.0/10
 topic_root: home
 
 mqtt:
@@ -17,6 +18,14 @@ images:
   caddy_builder: docker.io/library/caddy:2.11.9-builder
   caddy_dns_cloudflare: github.com/caddy-dns/cloudflare@v0.2.4
   lego: docker.io/goacme/lego:v5.7.0
+  postgres: docker.io/library/postgres:18.7-trixie
+
+postgres:
+  port: 5432
+  max_connections: 100
+  shared_buffers: 1GB
+  apps:
+    miniflux: {conn_limit: 25}
 
 warden:
   repo: "{{ lookup('env', 'HOME') }}/Projects/warden"

@@ -1,0 +1,19 @@
+listen_addresses = '{{ ansible_facts.tailscale0.ipv4.address }}'
+port = {{ postgres.port }}
+max_connections = {{ postgres.max_connections }}
+unix_socket_directories = '/var/run/postgresql'
+hba_file = '/etc/postgresql/pg_hba.conf'
+ident_file = '/etc/postgresql/pg_ident.conf'
+
+ssl = on
+ssl_cert_file = '/etc/postgresql-tls/server.crt'
+ssl_key_file = '/etc/postgresql-tls/server.key'
+ssl_min_protocol_version = 'TLSv1.3'
+password_encryption = 'scram-sha-256'
+
+shared_buffers = '{{ postgres.shared_buffers }}'
+idle_in_transaction_session_timeout = '15min'
+
+log_connections = on
+log_disconnections = on
+log_line_prefix = '%m [%p] %q%u@%d %h '
