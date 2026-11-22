@@ -2,13 +2,14 @@
 
 ## Status (2026-11-21)
 
-All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; devil and er605 run warden 0.4.0 (on er605: wake path, ISP status and usage, devices with link and ISP, ISP switching for reserved devices, decisions 17 and 18). The link was re-measured on BSNL (decision 19); it shows no bufferbloat, so no WAN is shaped (decision 21). Both devices were upgraded with `upgrade.yml` (decision 22) to 25.12.6 with current packages. er605 blocks ads and trackers for the LAN through dnsmasq, the Jio set-top box included on trial (decision 23). Its upstream DNS goes over HTTPS (decision 24). devil is protected by its UPS through NUT, which powers it off at 30 % and brings it back when mains returns (decision 25). The console shows each host's disks, devil's UPS and live rates per ISP, and how fresh each card's state is.
+All three repos are on `main` with CI green; `verify.yml` passes on every host and `site.yml --check` reports no changes. imp is retired and its repo archived (decision 20). er605 and eap225 run OpenWrt under the `router` and `ap` roles; devil and er605 run warden 0.4.0 (on er605: wake path, ISP status and usage, devices with link and ISP, ISP switching for reserved devices, decisions 17 and 18). The link was re-measured on BSNL (decision 19); it shows no bufferbloat, so no WAN is shaped (decision 21). Both devices were upgraded with `upgrade.yml` (decision 22) to 25.12.6 with current packages. er605 blocks ads and trackers for the LAN through dnsmasq, the Jio set-top box included on trial (decision 23). Its upstream DNS goes over HTTPS (decision 24). devil is protected by its UPS through NUT, which powers it off at 30 % and brings it back when mains returns (decision 25). The console shows each host's disks, devil's UPS and live rates per ISP, and how fresh each card's state is. The tailnet policy is kept in this repo (`roles/tailnet`); database clients get `tag:db-client`, which reaches only Postgres on mephisto (decision 27).
 
 ## Next
 
-1. Retire old-devil and the Omada controller (the last step of decision 16).
-2. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
-3. Decide decision 15 with decision 19's numbers.
+1. Platform Postgres (decision 27), one PR each: the `certs` role (lego, `db.mephisto.iamabhay.fyi`), the `postgres` role (TLS 1.3 on the tailnet, a role and database per app, `verify.yml` checks, runbook), then Miniflux as its first app at `rss.mephisto.iamabhay.fyi`. Then backups for it (pgBackRest or `pg_dump`; target undecided).
+2. Retire old-devil and the Omada controller (the last step of decision 16).
+3. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
+4. Decide decision 15 with decision 19's numbers.
 
 ## Then: API service (decision 15, if adopted)
 
