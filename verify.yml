@@ -393,6 +393,11 @@
       failed_when: ups_status.rc != 0 or ups_status.stdout.split() | intersect(['OL', 'OB']) == []
       when: ups is defined
 
+    - name: The stale-data recovery timer is active
+      ansible.builtin.command: systemctl is-active ups-recover.timer
+      changed_when: false
+      when: ups is defined
+
 - name: Verify access points
   hosts: access_points
   gather_facts: false
