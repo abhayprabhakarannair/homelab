@@ -394,8 +394,10 @@
       when: ups is defined
 
     - name: The stale-data recovery timer is active
-      ansible.builtin.command: systemctl is-active ups-recover.timer
-      changed_when: false
+      ansible.builtin.systemd_service:
+        name: ups-recover.timer
+      register: ups_recover_timer
+      failed_when: ups_recover_timer.status.ActiveState != 'active'
       when: ups is defined
 
 - name: Verify access points
