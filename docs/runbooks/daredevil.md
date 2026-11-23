@@ -53,7 +53,7 @@ Check decoding in Brave: `brave://gpu` shows **Video Decode: Hardware accelerate
 - **Shell:** `sudo usermod -s /usr/bin/fish $USER`.
 - **Network:** the home Wi-Fi connection uses the card's permanent MAC, so er605 gives it the `daredevil` reservation in `dhcp_hosts`; every other network keeps the per-network random MAC:
   `sudo nmcli connection modify <home-ssid> 802-11-wireless.cloned-mac-address permanent`.
-- **Firewall:** `sudo firewall-cmd --set-default-zone=public` and `sudo firewall-cmd --permanent --zone=public --remove-service=ssh` (Fedora's own zone opens ports 1025–65535). sshd stays disabled; a remote shell is Tailscale SSH, like devil.
+- **Firewall:** `sudo firewall-cmd --set-default-zone=public` and `sudo firewall-cmd --permanent --zone=public --remove-service=ssh` (Fedora's own zone opens ports 1025–65535). sshd stays disabled; a remote shell is Tailscale SSH, like devil. The home Wi-Fi connection and `tailscale0` are in the `home` zone, which allows only `dhcpv6-client`, `mdns` and `kdeconnect` (`nmcli connection modify <home-ssid> connection.zone home`, `firewall-cmd --permanent --zone=home --add-interface=tailscale0`, `ssh` and `samba-client` removed), so KDE Connect is never open on other networks.
 - **Tailscale:** `sudo systemctl enable --now tailscaled`, then `sudo tailscale up --ssh --hostname daredevil`; turn off key expiry in the admin console. Remove an old `daredevil` from the admin console first, or the new one becomes `daredevil-1`.
 - **Updates:** `AutomaticUpdatePolicy=stage` in `/etc/rpm-ostreed.conf`, `rpm-ostree reload`, `systemctl enable --now rpm-ostreed-automatic.timer`; a daily `flatpak-update.timer` (`flatpak update --noninteractive --assumeyes`); GNOME Software's own downloads off (`gsettings set org.gnome.software download-updates false`).
 - **Background work:** `ModemManager` disabled (no modem), `cups.service` disabled with `cups.socket` enabled (starts on demand), file indexing limited to `&DOCUMENTS &DOWNLOAD &MUSIC &PICTURES &VIDEOS` (`org.freedesktop.Tracker3.Miner.Files index-recursive-directories`).
@@ -64,6 +64,7 @@ Power needs no tuning: `tuned-ppd` switches to `balanced-battery` when unplugged
 
 - Flathub unfiltered: `sudo flatpak remote-modify --no-filter --enable flathub`; VLC from it (`org.videolan.VLC`).
 - Fedora's Flatpaks removed: Media Writer, Contacts, Calendar, Maps, Weather, Clocks, Connections, Decibels, Characters, Fonts. Firefox stays as a second browser.
+- GSConnect (KDE Connect for GNOME) from extensions.gnome.org (`gnome-extensions install`, then enable it in `org.gnome.shell enabled-extensions`; it loads at the next login), paired with devil and the phone with **Share clipboard** on. Away from home, devices reach each other over Tailscale with **Add device by IP**; devil allows KDE Connect from `tailnet_cidr` for that. Android only sends its clipboard when asked (**Send clipboard**).
 - Brave Origin is the default for `http`, `https` and HTML (`xdg-settings set default-web-browser brave-origin.desktop`, plus `gio mime` for each type).
 
 ## E. Dev environment
