@@ -92,6 +92,19 @@ Microsoft's RPM inside the Toolbox, not layered: its window shows on the desktop
 
 Update it with `sudo dnf upgrade` in the box; no reboot.
 
+Installing from the Marketplace fails with `Signature verification failed with 'UnknownError'` (Microsoft's `vsce-sign` helper exits without verifying; also reported on Arch and Manjaro). Signature checks stay on: install the extension from the `.vsix` VS Code would download (the `Microsoft.VisualStudio.Services.VSIXPackage` URL from `code --install-extension <id> --log trace`) with `code --install-extension <file>.vsix`, or use **Install Anyway** in the error dialog for a publisher you trust.
+
+### Game dev
+
+- Godot (GDScript, `org.godotengine.Godot`) and Blender (`org.blender.Blender`) from Flathub. Flathub's .NET Godot lags far behind, so C# would need the official build and the .NET SDK through mise instead.
+- Godot may talk to the host's Flatpak service (`flatpak override --user --talk-name=org.freedesktop.Flatpak org.godotengine.Godot`; it already sees the whole filesystem), so it can start:
+  - `~/.local/bin/godot-blender` (`flatpak-spawn --host flatpak run --command=blender org.blender.Blender "$@"`): Godot's Blender path, so `.blend` files import directly.
+  - `~/.local/bin/godot-code` (`flatpak-spawn --host toolbox run --container fedora-toolbox-45 code "$@"`): the external editor, exec flags `{project} --goto {file}:{line}:{col}`, off until **Use External Editor** is ticked.
+  These live in `~/.var/app/org.godotengine.Godot/config/godot/editor_settings-4.7.tres`.
+- `~/.local/bin/godot` runs the Flatpak from the host or the Toolbox; VS Code's `godot-tools` (GDScript language server and debugger over localhost) uses it through `godotTools.editorPath.godot4`.
+- Git LFS through mise (`git lfs install --skip-repo`) for models, textures and audio in game repos.
+- Blender: **Emulate Numpad** and **Emulate 3 Button Mouse** on (no numpad, touchpad). Cycles cannot use the Radeon 680M, so it renders on the CPU; EEVEE and the viewport run on the GPU.
+
 ## F. Checks
 
 | Check | Expected (2026-11-23) |
