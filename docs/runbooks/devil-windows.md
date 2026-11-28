@@ -54,22 +54,11 @@ A Back-UPS turns its output off about 2 minutes after the PC shuts down and back
    ```
    so WSL shares Windows' network: er605 and eap225 on the LAN, mephisto over Windows' Tailscale.
 2. Install fish, mise, ansible-core and the collections as on daredevil ([runbook](daredevil.md)); restore `~/.ssh/homelab` from 1Password; clone the three repos into `~/Projects`.
-3. Check: `ansible-playbook site.yml --check --diff` changes nothing on er605 and eap225 (mephisto changes once, in section E).
+3. Check: `ansible-playbook site.yml --check --diff` reports no changes, then run `verify.yml`.
 
-## E. Apply decision 29
+## E. Decision 29 (applied 2026-11-28)
 
-The PR that made this change removes devil from the inventory, the `workstation` and `ups` roles, warden's systemd path and the `devil` MQTT user. `wol.devil` stays: er605 still wakes devil.
-
-1. Pull `main` in all three repos.
-2. While the broker still has the `devil` user, clear its retained topics, or `verify.yml` fails on them:
-   ```fish
-   printf '%s\n' '- hosts: mephisto' '  become: true' '  gather_facts: false' '  tasks:' \
-     '    - ansible.builtin.command: podman exec mqtt mosquitto_pub -h 127.0.0.1 -p {{ mqtt.port }} -u devil -P {{ secrets.mqtt.devil }} -r -n -t {{ topic_root }}/devil/{{ item }}' \
-     '      loop: [meta, status, state]' '      no_log: true' > $XDG_RUNTIME_DIR/clear-devil.yml
-   ansible-playbook $XDG_RUNTIME_DIR/clear-devil.yml; and rm $XDG_RUNTIME_DIR/clear-devil.yml
-   ```
-3. `ansible-playbook site.yml --check --diff`: only mephisto's Mosquitto password file changes. Apply, then run `verify.yml`.
-4. `sops edit group_vars/all/secrets.sops.yml`: delete `become.devil`, `mqtt.devil` and `nut`.
+Applied from devil before the wipe: warden stopped there, devil's retained `meta`, `status` and `state` cleared as its MQTT user, `site.yml` applied to mephisto (#62), which removed that user, and `become.devil`, `mqtt.devil` and `nut` dropped from SOPS (#63). `wol.devil` stays: er605 still wakes devil and reserves its address. Nothing in homelab is left to do for devil.
 
 ## Later: warden on Windows
 
@@ -77,4 +66,4 @@ Only if devil's card or remote power-off is missed. paho-mqtt runs unchanged; wa
 
 ## Order
 
-A → B (test a wake) → C (plug-pull test) → D → E.
+A → B (test a wake) → C (plug-pull test) → D.
