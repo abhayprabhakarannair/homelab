@@ -6,10 +6,11 @@ All three repos are on `main` with CI green; `verify.yml` passes on every host a
 
 ## Next
 
-1. Backups for Postgres (pgBackRest or `pg_dump`; target undecided, see the backlog's Hetzner item): it now holds every app's data. The runbook has the restore test.
-2. Retire old-devil and the Omada controller (the last step of decision 16).
-3. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
-4. Decide decision 15 with decision 19's numbers.
+1. Move devil to Windows 11 ([runbook](runbooks/devil-windows.md)): PowerChute replaces NUT, WSL2 becomes a control node, devil leaves the inventory.
+2. Backups for Postgres (pgBackRest or `pg_dump`; target undecided, see the backlog's Hetzner item): it now holds every app's data. The runbook has the restore test.
+3. Retire old-devil and the Omada controller (the last step of decision 16).
+4. Replace the 10/100 switch behind er605 with a TP-Link LS108GP (unmanaged gigabit, 802.3af/at PoE+ on all 8 ports, 62 W budget), so eap225 (802.3af, ≤ 12.6 W) can drop its passive 24 V injector; keep Extend mode off (it drops ports 1–2 to 10 Mbit/s). devil's port is capped at 100 Mbit/s until then.
+5. Decide decision 15 with decision 19's numbers.
 
 ## Then: API service (decision 15, if adopted)
 
