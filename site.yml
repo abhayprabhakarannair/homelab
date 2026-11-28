@@ -14,14 +14,6 @@
     - console
     - caddy
 
-- name: Workstations
-  hosts: workstations
-  become: true
-  gather_facts: false
-  roles:
-    - workstation
-    - ups
-
 - name: Routers
   hosts: routers
   gather_facts: false
@@ -36,7 +28,6 @@
 
 - name: Wardens
   hosts: wardens
-  become: true
   gather_facts: false
   roles:
     - warden

@@ -1,2 +1,1 @@
 warden_archive: "{{ lookup('env', 'HOME') }}/.cache/homelab/warden.tar.gz"
-warden_init: systemd

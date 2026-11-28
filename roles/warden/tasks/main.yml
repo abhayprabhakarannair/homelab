@@ -1,5 +1,5 @@
 - name: Runtime dependency and service user
-  ansible.builtin.include_tasks: "{{ warden_init }}-prereqs.yml"
+  ansible.builtin.include_tasks: prereqs.yml
 
 # One reproducible archive per commit: its checksum says whether the code changed, and unpacking it
 # into an emptied directory drops files that left the repo. gzip rather than git's own compression,
@@ -66,7 +66,7 @@
     src: "{{ item.src }}"
     dest: "{{ mirror_copy.work }}{{ item.path }}"
     mode: "{{ item.mode }}"
-  loop: "{{ warden_init_files[warden_init] }}"
+  loop: "{{ warden_init_files }}"
   loop_control:
     label: "{{ item.path }}"
   delegate_to: localhost
@@ -100,4 +100,4 @@
   notify: Restart warden
 
 - name: Service
-  ansible.builtin.include_tasks: "{{ warden_init }}-service.yml"
+  ansible.builtin.include_tasks: service.yml

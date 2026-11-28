@@ -1,6 +1,6 @@
 # devil on Windows 11
 
-Plan for moving devil from CachyOS to Windows 11 (2026-11-28). Not yet applied: until step 6, `site.yml` and `verify.yml` fail on devil.
+Moving devil from CachyOS to Windows 11 (2026-11-28, decision 29). homelab no longer manages devil.
 
 ## What changes
 
@@ -10,7 +10,7 @@ Plan for moving devil from CachyOS to Windows 11 (2026-11-28). Not yet applied: 
 | NUT powers off at 30 % / 5 min and has the UPS cut and restore its output (decision 25) | PowerChute Serial Shutdown (section C). |
 | Wake target | Unchanged in homelab; Windows needs the settings in section B. |
 | Ansible control node | WSL2 on devil (section D). daredevil has been reinstalled several times; don't rely on it as the only control node. |
-| ufw role, Tailscale SSH | Gone: Tailscale has no SSH server on Windows, so homelab stops managing devil. |
+| ufw role, Tailscale SSH | Gone: PCs are set up by hand (decision 29), and Tailscale has no SSH server on Windows. |
 
 ## A. Install
 
@@ -28,7 +28,12 @@ devil's NIC is a Realtek RTL8125 (2.5GbE).
 3. Device Manager → Network adapters → Realtek 2.5GbE → Properties:
    - Advanced: **Wake on Magic Packet** Enabled, **Shutdown Wake-On-Lan** Enabled, **Energy-Efficient Ethernet** and **Green Ethernet** Disabled.
    - Power Management: tick **Allow this device to wake the computer** and **Only allow a magic packet to wake the computer**.
-4. Test: shut down from the Start menu, press wake in the console. Repeat after a full power-off at the wall.
+4. Allow er605's ping: Windows drops inbound ICMP echo by default, and er605's warden decides devil's power state by pinging it. In an administrator PowerShell:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Ping from er605" -Direction Inbound -Protocol ICMPv4 -IcmpType 8 -RemoteAddress 192.168.0.1 -Action Allow -Profile Any
+   ```
+   Check: the console shows devil online while it runs.
+5. Test: shut down from the Start menu, press wake in the console. Repeat after a full power-off at the wall.
 
 ## C. UPS: PowerChute Serial Shutdown
 
@@ -49,14 +54,22 @@ A Back-UPS turns its output off about 2 minutes after the PC shuts down and back
    ```
    so WSL shares Windows' network: er605 and eap225 on the LAN, mephisto over Windows' Tailscale.
 2. Install fish, mise, ansible-core and the collections as on daredevil ([runbook](daredevil.md)); restore `~/.ssh/homelab` from 1Password; clone the three repos into `~/Projects`.
-3. Check: `ansible-playbook site.yml --check --diff --limit mephisto,er605,eap225` reports no changes.
+3. Check: `ansible-playbook site.yml --check --diff` changes nothing on er605 and eap225 (mephisto changes once, in section E).
 
-## E. Homelab PR (after the switch)
+## E. Apply decision 29
 
-- Remove devil from the inventory, `site.yml` and `verify.yml` (roles `workstation`, `ups`, `warden` on devil).
-- Remove the `devil` MQTT user and clear its retained `meta`/`status`/`state`; keep `wol.devil` (er605 still wakes it).
-- Docs: devil's row in architecture.md, a decision superseding 25 (PowerChute replaces NUT) and updating 28 (WSL2 control node), roadmap status.
-- Run `verify.yml` from WSL2.
+The PR that made this change removes devil from the inventory, the `workstation` and `ups` roles, warden's systemd path and the `devil` MQTT user. `wol.devil` stays: er605 still wakes devil.
+
+1. Pull `main` in all three repos.
+2. While the broker still has the `devil` user, clear its retained topics, or `verify.yml` fails on them:
+   ```fish
+   printf '%s\n' '- hosts: mephisto' '  become: true' '  gather_facts: false' '  tasks:' \
+     '    - ansible.builtin.command: podman exec mqtt mosquitto_pub -h 127.0.0.1 -p {{ mqtt.port }} -u devil -P {{ secrets.mqtt.devil }} -r -n -t {{ topic_root }}/devil/{{ item }}' \
+     '      loop: [meta, status, state]' '      no_log: true' > $XDG_RUNTIME_DIR/clear-devil.yml
+   ansible-playbook $XDG_RUNTIME_DIR/clear-devil.yml; and rm $XDG_RUNTIME_DIR/clear-devil.yml
+   ```
+3. `ansible-playbook site.yml --check --diff`: only mephisto's Mosquitto password file changes. Apply, then run `verify.yml`.
+4. `sops edit group_vars/all/secrets.sops.yml`: delete `become.devil`, `mqtt.devil` and `nut`.
 
 ## Later: warden on Windows
 

@@ -9,7 +9,7 @@ mqtt:
   ws_port: 9001
   funnel_port: 8443
   funnel_host: mephisto.tail6aa22b.ts.net
-  devices: [devil, er605, probe]
+  devices: [er605, probe]
   ui: [console]
 
 images:

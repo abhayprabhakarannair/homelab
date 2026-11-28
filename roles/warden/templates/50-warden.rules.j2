@@ -1,7 +1,0 @@
-// warden may power off, reboot and suspend this machine, nothing else.
-polkit.addRule(function (action, subject) {
-  var allowed = {{ ['power-off', 'reboot', 'suspend'] | product(['', '-multiple-sessions', '-ignore-inhibit']) | map('join') | map('regex_replace', '^', 'org.freedesktop.login1.') | list | to_json }};
-  if (subject.user == "warden" && allowed.indexOf(action.id) >= 0) {
-    return polkit.Result.YES;
-  }
-});
