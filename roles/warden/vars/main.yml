@@ -1,11 +1,7 @@
 warden_init_files:
-  systemd:
-    - {src: 50-warden.rules.j2, path: /etc/polkit-1/rules.d/50-warden.rules, mode: "0644"}
-    - {src: warden.service.j2, path: /etc/systemd/system/warden.service, mode: "0644"}
-  procd:
-    - {src: warden.init.j2, path: /etc/init.d/warden, mode: "0755"}
-    # OpenWrt's sysupgrade keeps the files listed here.
-    - {src: upgrade-keep.j2, path: /lib/upgrade/keep.d/warden, mode: "0644"}
+  - {src: warden.init.j2, path: /etc/init.d/warden, mode: "0755"}
+  # OpenWrt's sysupgrade keeps the files listed here.
+  - {src: upgrade-keep.j2, path: /lib/upgrade/keep.d/warden, mode: "0644"}
 warden_files: >-
   {{ [{'path': '/opt/warden', 'mode': '0755', 'dir': true},
       {'path': '/opt/warden/warden.tar.gz', 'mode': '0644'},
@@ -14,4 +10,4 @@ warden_files: >-
       {'path': '/etc/warden/env', 'mode': '0640', 'group': 'warden'}]
      + ([{'path': '/etc/warden/wifi-password', 'mode': '0640', 'group': 'warden'}]
         if warden_wifi_api is defined else [])
-     + warden_init_files[warden_init] | map('ansible.utils.remove_keys', target=['src']) | list }}
+     + warden_init_files | map('ansible.utils.remove_keys', target=['src']) | list }}

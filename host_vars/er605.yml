@@ -31,7 +31,6 @@ wan_preferences:
 router_adblock_exempt: []
 router_adblock_allowlist: []
 
-warden_init: procd
 warden_uid: 200
 warden_modules: [system, wake, wan, clients]
 warden_disks: [/overlay]

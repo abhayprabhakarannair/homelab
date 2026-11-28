@@ -1,7 +1,0 @@
-[Unit]
-Description=Restart the NUT driver when the UPS data is stale
-After=nut-server.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/ups-recover

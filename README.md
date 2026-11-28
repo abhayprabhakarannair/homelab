@@ -1,13 +1,14 @@
 # homelab
 
-Ansible for every machine. Re-running `site.yml` converges a host from scratch.
+Ansible for the long-lived machines: the router, the access point, mephisto and the tailnet policy. PCs are set up by hand from [runbooks](docs/runbooks). Re-running `site.yml` converges a host from scratch.
 
 System design, decisions and roadmap: [docs/architecture.md](docs/architecture.md), [docs/decisions.md](docs/decisions.md), [docs/roadmap.md](docs/roadmap.md).
 
 | Host | Role |
 |---|---|
 | mephisto | Oracle VM (AlmaLinux 10, aarch64). Platform: MQTT bus, Caddy for `*.mephisto.iamabhay.fyi` on the tailnet, the platform Postgres (`db.mephisto.iamabhay.fyi`), Miniflux (`rss.`) |
-| devil | Workstation (CachyOS). Runs warden; woken by er605's warden |
+| er605 | Router (OpenWrt). Runs warden: wakes devil, ISP status and switching, LAN devices |
+| eap225 | Access point (OpenWrt) |
 
 ## Network
 

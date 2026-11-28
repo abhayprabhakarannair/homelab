@@ -1,9 +1,0 @@
-#!/bin/sh
-# usbhid-ups does not always reconnect after the UPS drops off USB, and upsd then reports stale data until the
-# driver restarts (2026-11-22: 13 h without shutdown protection). A minute's grace covers a normal reconnect.
-stale() { upsc {{ ups.name }}@localhost ups.status 2>&1 | grep -q 'Data stale'; }
-stale || exit 0
-sleep 60
-stale || exit 0
-echo "UPS data stale for over a minute: restarting nut-driver@{{ ups.name }}"
-exec systemctl restart nut-driver@{{ ups.name }}.service

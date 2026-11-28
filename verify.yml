@@ -255,7 +255,7 @@
         links: "{{ wan.links }}"
       no_log: true
 
-    - name: Every warden host reports its disks, and its UPS where it has one
+    - name: Every warden host reports its disks
       ansible.builtin.command: "{{ sub }} {{ console }} -t {{ topic_root }}/{{ item }}/state"
       loop: "{{ groups['wardens'] }}"
       register: warden_state
@@ -264,8 +264,6 @@
         warden_state.rc != 0
         or state.system.disks | default([]) | map(attribute='mount') | list
            != hostvars[item].warden_disks | default(['/'])
-        or ('ups' in hostvars[item].warden_modules
-            and (state.ups.charge_pct is not defined or state.ups.error is defined))
       vars:
         state: "{{ warden_state.stdout | from_json }}"
       no_log: true
@@ -355,50 +353,6 @@
       delegate_to: localhost
       become: false
       changed_when: false
-
-- name: Verify UPS monitoring
-  hosts: workstations
-  become: true
-  gather_facts: false
-  tasks:
-    - name: Gather service state
-      ansible.builtin.service_facts:
-      when: ups is defined
-
-    - name: Driver, server and monitor are running
-      ansible.builtin.assert:
-        that: ansible_facts.services[item].state == 'running'
-      loop: ["nut-driver@{{ ups.name }}.service", nut-server.service, nut-monitor.service]
-      when: ups is defined
-
-    - name: Collect listening sockets
-      ansible.builtin.command: ss -tlnH sport = :3493
-      register: ups_sockets
-      changed_when: false
-      when: ups is defined
-
-    - name: The UPS server listens on localhost only
-      ansible.builtin.assert:
-        that:
-          - listeners != []
-          - listeners | reject('match', '127\.0\.0\.1:') | list == []
-      vars:
-        listeners: "{{ ups_sockets.stdout_lines | map('split') | map(attribute=3) | list }}"
-      when: ups is defined
-
-    - name: The UPS reports on mains or on battery
-      ansible.builtin.command: upsc {{ ups.name }}@localhost ups.status
-      register: ups_status
-      changed_when: false
-      failed_when: ups_status.rc != 0 or ups_status.stdout.split() | intersect(['OL', 'OB']) == []
-      when: ups is defined
-
-    - name: The stale-data recovery timer is active
-      ansible.builtin.systemd_service:
-        name: ups-recover.timer
-      register: ups_recover_timer
-      failed_when: ups_recover_timer.status.ActiveState != 'active'
-      when: ups is defined
 
 - name: Verify access points
   hosts: access_points
